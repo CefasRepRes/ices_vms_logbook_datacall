@@ -17,7 +17,7 @@ b as (
 	from voyages  
 ) 
 
-select id, b.voyage_id, year_Departure, year_return,  c.* 
+select  id, b.voyage_id, year_Departure, year_return, voyage_days, c.number_log_events 
 from  ( 
 	select  voyage_id , count(distinct ACTIVITY_ID) number_log_events 
 	from voyages
