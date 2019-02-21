@@ -11,4 +11,4 @@ with voyages as (
 	and f_voyage.DEPARTURE_DATE_TIME between'01-JAN-2018' and '31-DEC-2018'
 )
 
-select ROW_NUMBER() OVER( ORDER BY voyage_id ) id, voyage_id into RM12.ft_ref_uq_2019 from voyages ;
+select ROW_NUMBER() OVER( ORDER BY voyage_id ) id, voyage_id into RM12.ft_ref_uq_2018 from voyages ;
