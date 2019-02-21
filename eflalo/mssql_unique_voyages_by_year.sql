@@ -13,11 +13,11 @@ with voyages as (
 )
 , 
 b as ( 
-	select ROW_NUMBER() OVER( ORDER BY voyage_id ) id, * , DATEDIFF(DAY,DEPARTURE_DATE_TIME,RETURN_DATE_TIME  ) voyage_days   
+	 * , DATEDIFF(DAY,DEPARTURE_DATE_TIME,RETURN_DATE_TIME  ) voyage_days   
 	from voyages  
 ) 
 
-select  id, b.voyage_id, year_Departure, year_return, voyage_days, c.number_log_events 
+select  DISTINCT  b.voyage_id, year_Departure, year_return, voyage_days, c.number_log_events 
 from  ( 
 	select  voyage_id , count(distinct ACTIVITY_ID) number_log_events 
 	from voyages
