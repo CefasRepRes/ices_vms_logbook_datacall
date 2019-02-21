@@ -1,14 +1,16 @@
 /* Query unique VOYAGES ID's for the required time period */
 
 with voyages as ( 
-	select distinct f_voyage.voyage_id  
+	select distinct iFV.voyage_id  
 	-- Tables used and joined
-	from f_voyage 
-	join f_activity on f_voyage.voyage_id = f_activity.voyage_id 
-	join f_catch  on f_activity.activity_id = f_catch.activity_id 
-	join d_vessel on f_voyage.rss_no = d_vessel.rss_no
-	where D_VESSEL.COUNTRY_CODE like 'GB%'
-	and f_voyage.DEPARTURE_DATE_TIME between'01-JAN-2018' and '31-DEC-2018'
+	from f_voyage iFV
+	inner join f_activity iFA on iFV.voyage_id = iFA.voyage_id 
+	inner join f_catch  iFC on iFA.activity_id = iFC.activity_id 
+	inner join d_vessel iDV on iFV.rss_no = iDV.rss_no  and iFA.ACTIVITY_DATE between iDV.VALID_FROM_DATE and iDV.VALID_TO_DATE
+	where iDV.COUNTRY_CODE like 'GB%'
+	and iFA.ACTIVITY_DATE between'01-JAN-2018' and '31-DEC-2018'
+	and iFC.SPECIES_CODE not in ('LVR','ROE','UKN','ZZB')
+
 )
 
-select ROW_NUMBER() OVER( ORDER BY voyage_id ) id, voyage_id into RM12.ft_ref_uq_2018 from voyages ;
+select ROW_NUMBER() OVER( ORDER BY voyage_id ) id, voyage_id  from voyages ;
