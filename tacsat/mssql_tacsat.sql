@@ -24,4 +24,4 @@ on iFV.RSS_NO = iDV.RSS_NO and iFV.DEPARTURE_DATE_TIME between iDV.VALID_FROM_DA
 
 -- filter fields with no voyage_id or no vessel  
 where iFV.VOYAGE_ID IS NOT NULL and Sat.VessReg is not null
-Order by  VE_VREF,SI_FT,  SI_DATE, SI_TIME  
+Order by  VE_REF,SI_FT,  SI_DATE, SI_TIME  
