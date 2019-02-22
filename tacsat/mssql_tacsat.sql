@@ -1,5 +1,3 @@
-/****
-
 
 select distinct 
 Sat.RSSNo as VE_REF,
