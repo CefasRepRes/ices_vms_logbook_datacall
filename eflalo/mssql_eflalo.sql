@@ -40,7 +40,7 @@ iFA.RECTANGLE_CODE as LE_RECT,
 iFA.FAO_FISHING_AREA_CODE as LE_DIV,
 --iDE.EFLALO2_AREA as LE_DIV,
 null as LE_MET,
-species = case 
+case 
 when iFC.species_code in ('CLH','CLS','CLV','CLX','CMM','COC','MUS','OYC','OYF','OYG','OYX','RAZ','SSD') then 'CLX'
 when iFC.species_code in ('ANT','ATP','BAZ','BER','BIB','BLP','BLU','BRB','BSF','CAX','CBC','CEO','CES','CMO','COX',
 'CUS','CYH','DEL','EEO','ELP','EPI','FIL','FLX','GPD','GRM','GRN','GRO','GRX','GUU','GUX','HKP','HPR','IOO','KCP','LUM',
