@@ -68,13 +68,9 @@ Sum(iFC.LANDINGS_VALUE) as LE_EURO
 from 
 -- IFISH basic joins
 dbo.F_VOYAGE iFV 
-inner join dbo.F_ACTIVITY iFA on iFV.VOYAGE_ID = iFA.VOYAGE_ID
+inner join dbo.F_ACTIVITY iFA on iFV.VOYAGE_ID = iFA.VOYAGE_ID and iFA.ACTIVITY_DATE between'01-JAN-2018' and '31-DEC-2018'
 inner join dbo.F_CATCH iFC 	on iFA.ACTIVITY_ID = iFC.ACTIVITY_ID	
 inner join dbo.D_VESSEL iDV on iFV.RSS_NO = iDV.RSS_NO and iFV.RETURN_DATE_TIME between iDV.VALID_FROM_DATE and iDV.VALID_TO_DATE
-
--- Now join to report values (a) to get vessels and (b) to get rectangles
-inner join (select '2014-01-01 00:00:00.000' as DateFrom,'2016-01-01 23:59:59' as DateTo) rq
- on iFA.ACTIVITY_DATE between rq.DateFrom and rq.DateTo 
  
 
 -- Need a couple of port nationalities
