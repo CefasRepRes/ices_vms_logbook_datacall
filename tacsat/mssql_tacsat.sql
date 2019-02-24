@@ -9,7 +9,7 @@ Sat.Speed as SI_SP,
 Sat.Course as SI_HE,
 null as SI_HARB,
 null as SI_STATE,
-isnull(iFV.VOYAGE_ID,0) as SI_FT
+CAST( isnull(iFV.VOYAGE_ID,0) AS BIGINT ) as SI_FT
 
 FROM (select * from dbo.F_VOYAGE  where VOYAGE_ID in (select ft_ref from rm12.ft_ref_uq_2018) )as iFV
 
