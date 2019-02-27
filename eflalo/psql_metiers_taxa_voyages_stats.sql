@@ -36,23 +36,23 @@ select count(*) , taxa from daf where taxa not in ('DWS','DEF','CEP','CRU','LPF'
 
 select a.*, lekg_sum*0.5 halfTotWgt, leeuro_sum*0.5 halfTotVal, b.halfDEFWT, last_value(taxa) over wnd_kg as maxwgt, last_value(taxa) over wnd_val as maxval
 from ( 
-	select ft_Ref,taxa, sum(le_kg) lekg_sum, sum(le_euro) leeuro_sum  
+	select ft_Ref,le_gear, taxa, sum(le_kg) lekg_sum, sum(le_euro) leeuro_sum  
 	from daf 
-	group by ft_ref, taxa 
+	group by ft_ref,le_gear,  taxa 
  	) a 
 left join (
-	select ft_Ref , sum(le_kg)*0.5 halfDEFWT   
+	select ft_Ref ,le_gear, sum(le_kg)*0.5 halfDEFWT   
 	from daf 
 	where taxa = 'DEF' 
-	group by ft_ref   
+	group by ft_ref ,le_gear  
 	) b
- using (ft_Ref)
+ using (ft_Ref,le_gear)
  
  WINDOW wnd_kg as( 
- 	PARTITION BY ft_ref ORDER BY lekg_sum
+ 	PARTITION BY ft_ref, le_gear ORDER BY lekg_sum
    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
  ),   wnd_val as( 
- 	PARTITION BY ft_ref ORDER BY leeuro_sum
+ 	PARTITION BY ft_ref,le_gear ORDER BY leeuro_sum
    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
  )
  
