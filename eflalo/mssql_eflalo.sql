@@ -1,3 +1,4 @@
+/*code to create eflalo dataset from IFISH2 SQL server */
 
 select DISTINCT
 
