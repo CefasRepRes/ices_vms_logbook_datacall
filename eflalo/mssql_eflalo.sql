@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------------
+/* 
 #
 # Script  to create EFLALO dataset from IFISH2 SQL server database
 #
@@ -9,9 +9,9 @@
 # Date: 25-Jan-2017
 # Update Date: 29-Jan-2019 ; Updated by: Roi Martinez
 # Client: ICES
-#-------------------------------------------------------------------------------*/
+#*/
 
-/*#--------------------READ ME----------------------------------------------------
+/*                               READ ME 
 # The following script provides the code needed to create a EFLALO dataset from
 #  IFISH database. The EFLALO format here provided is a modification of the standard 
 # EFLALO format , adpating the SPECIES columns  to perform better with SQL queries.
@@ -20,7 +20,7 @@
 # for each species captured during that LE_ID . Then the speis columsn can be easily 
 # pivoted into EFLALO standard format in R enviroment and then be used with VMSTools 
 # package for further analysis .
-#-------------------------------------------------------------------------------*/
+*/
 
 select DISTINCT
 
