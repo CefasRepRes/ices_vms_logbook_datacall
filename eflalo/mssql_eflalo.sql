@@ -11,7 +11,7 @@
  
  
 /*READ ME 
- The package following script provides the code needed to create a EFLALO dataset from
+ The  following script provides the code needed to create a EFLALO dataset from
  IFISH database. The EFLALO format here provided is a modification of the standard 
  EFLALO format , adpating the SPECIES columns  to perform better with SQL queries.
    Instead to have a field for weight and value by species and by log event (LE_ ), it
