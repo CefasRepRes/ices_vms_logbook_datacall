@@ -17,7 +17,7 @@
    Instead to have a field for weight and value by species and by log event (LE_ ), it
  has a column for species , one for weight and one for value and LE_ID is repeated 
  for each species captured during that LE_ID . Then the species columns can be easily
- pivoted into EFLALO standard format in R enviroment and then be used with  VMSTools package
+ pivoted into EFLALO standard format in R enviroment and then be used with  VMSTools
 
  
  */
