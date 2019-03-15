@@ -14,11 +14,7 @@
  The following script provides the code needed to create a EFLALO dataset from
  IFISH database. The EFLALO format here provided is a modification of the standard 
  EFLALO format , adpating the SPECIES columns  to perform better with SQL queries.
- Instead to have a field for weight and value by species and by log event (LE_ ), it 
- has a column for species , one for weight and one for value and LE_ID is repeated 
- for each species captured during that LE_ID . Then the speis columsn can be easily 
- pivoted into EFLALO standard format in R enviroment and then be used with VMSTools 
- package for further analysis . */
+ */
  
  
 
