@@ -1,0 +1,46 @@
+#-------------------------------------------------------------------------------
+#
+# Script to pivot the EFLALO   species weight and value columns to adapt them
+# to the format required to use in the VMSTools package.
+#  
+#
+# By: Roi Martinez# 
+# Code by: Roi Martinez
+# Contact: roi.martinez@cefas.co.uk
+#
+# Date: 15-Mar-2019
+# Update Date:   ; Updated by:  
+# Client: Cefas, MMO
+#-------------------------------------------------------------------------------
+
+#--------------------READ ME----------------------------------------------------
+# Format 1: The fields EFLALO table stored in GeoFish follow the standard format except for
+# for the species fields and their weight and value. EFLALO in GeoFISH was cretaed 
+# to be more efficient for SQL queries , then instead have a column for each species
+# weight and value , it has a column for all the species and two others for their 
+# associated weight and value. 
+# Format 2: However R VMSTools script was created to process EFLALO dataframes with the each
+# species name in the column,  with a column for weight and value for specie.
+# Solution: This script was created to convert EFLALO format in GeoFish into a format used in 
+# VMSTools R package, needed between other task to process the EFLALO and TACSAT data for the ICES 
+# annual datacall .
+#-------------------------------------------------------------------------------
+
+
+
+ 
+#### PIVOT (CAST) THE COLUMN NAMES IN EFLALO TO BE IN VMSTOOLS FORMAT ######
+   
+library(reshape2)
+library(data.table)
+eflalo <- data.table::dcast(setDT(eflalo) , ...  ~ LE_SPE   , value.var = c("LE_EURO","LE_KG"),  fun.aggregate = sum )
+eflalo <- as.data.frame(eflalo)
+eflalo <- eflalo[ , c (  colnames(eflalo)[1:30], colnames(eflalo)[31: ncol(eflalo)][ order( substring ( colnames(eflalo)[31: ncol(eflalo)],
+                                                                                                          nchar(colnames(eflalo)[31: ncol(eflalo)]) -2,  
+                                                                                                          nchar(colnames(eflalo)[31: ncol(eflalo)])
+                                                                                                      )
+                                                                                            )
+                                                                                     ]
+                          )
+                 ]
+   
