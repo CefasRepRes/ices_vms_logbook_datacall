@@ -105,16 +105,16 @@ end as LE_SPE,
 LE_KG, 
 LE_EURO
 
-	from 
-	-- IFISH basic joins
-	iFV inner join  iFA on iFV.VOYAGE_ID = iFA.VOYAGE_ID  
-	inner join  iFC 	on iFA.ACTIVITY_ID = iFC.ACTIVITY_ID	
-inner join dbo.D_VESSEL iDV on iFV.RSS_NO = iDV.RSS_NO and iFV.RETURN_DATE_TIME between iDV.VALID_FROM_DATE and iDV.VALID_TO_DATE
- 
+from 
+-- IFISH basic joins
+iFV inner join  iFA on iFV.VOYAGE_ID = iFA.VOYAGE_ID  
+inner join  iFC 	on iFA.ACTIVITY_ID = iFC.ACTIVITY_ID	
+left join dbo.D_VESSEL iDV on iFV.RSS_NO = iDV.RSS_NO and ( CONVERT(  DATE, CONVERT(VARCHAR(10), iFV.RETURN_DATE_TIME, 112) ) between CONVERT(  DATE, CONVERT(VARCHAR(10), iDV.VALID_FROM_DATE, 112) )  and CONVERT(  DATE, CONVERT(VARCHAR(10),  iDV.VALID_TO_DATE , 112) ) 
+or CONVERT(  DATE, CONVERT(VARCHAR(10), iFV.DEPARTURE_DATE_TIME, 112) ) between CONVERT(  DATE, CONVERT(VARCHAR(10), iDV.VALID_FROM_DATE, 112) )  and CONVERT(  DATE, CONVERT(VARCHAR(10),  iDV.VALID_TO_DATE , 112) )  )  
 
 -- Need a couple of port nationalities
-inner join dbo.D_PORT iDPD on iFV.DEPARTURE_PORT_CODE = iDPD.PORT_CODE
-inner join dbo.D_PORT iDPL on iFV.LANDING_PORT_CODE = iDPL.PORT_CODE
+left join dbo.D_PORT iDPD on iFV.DEPARTURE_PORT_CODE = iDPD.PORT_CODE
+left join dbo.D_PORT iDPL on iFV.LANDING_PORT_CODE = iDPL.PORT_CODE
 -- inner join dbo.GBPToEuroConversionMultiplier iMp on Year(iFV.RETURN_DATE_TIME) = iMp.YearValid
 
 --inner join iFish2Dev.dbo.D_EFLALO2_AREA iDE on iFA.FAO_FISHING_AREA_CODE = iDE.FAO_FISHING_AREA
