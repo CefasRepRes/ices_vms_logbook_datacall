@@ -33,11 +33,12 @@
    
 library(reshape2)
 library(data.table)
-eflalo <- data.table::dcast(setDT(eflalo) , ...  ~ LE_SPE   , value.var = c("LE_EURO","LE_KG"),  fun.aggregate = sum )
+eflalo <- data.table::dcast(setDT(eflalo) , ...  ~ LE_SPE   , value.var = c("LE_KG","LE_EURO"),  fun.aggregate = sum )
 eflalo <- as.data.frame(eflalo)
-eflalo <- eflalo[ , c (  colnames(eflalo)[1:30], colnames(eflalo)[31: ncol(eflalo)][ order( substring ( colnames(eflalo)[31: ncol(eflalo)],
-                                                                                                          nchar(colnames(eflalo)[31: ncol(eflalo)]) -2,  
-                                                                                                          nchar(colnames(eflalo)[31: ncol(eflalo)])
+first_kg_col <- grep('KG', colnames(eflalo))[1]   # Calculates position of first column with 'KG' in its name
+eflalo <- eflalo[ , c (  colnames(eflalo)[1:first_kg_col-1], colnames(eflalo)[first_kg_col: ncol(eflalo)][ order( substring ( colnames(eflalo)[first_kg_col: ncol(eflalo)],
+                                                                                                          nchar(colnames(eflalo)[first_kg_col: ncol(eflalo)]) -2,  
+                                                                                                          nchar(colnames(eflalo)[first_kg_col: ncol(eflalo)])
                                                                                                       )
                                                                                             )
                                                                                      ]
