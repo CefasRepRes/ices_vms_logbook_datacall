@@ -141,7 +141,7 @@ INSERT  INTO eflalo_metiers.metiers_tables_fao_areas_2019  VALUES
 ---- 0.a : GET REGION: getregion r script  in correct format . Get the REGION submitted in the logbooks in the correct format to analize the metiers. 
 
 
-drop table eflalo_metiers.voyage_region;
+drop table if exists eflalo_metiers.voyage_region;
 
 create table eflalo_metiers.voyage_region as 
 
@@ -195,7 +195,7 @@ select DISTINCT "FT_REF" , "LE_GEAR","LE_DIV", "DCFcode" dcf_gearcode from (
 
 --- 0.b: GET MESH SIZE BY TRIP : get mesh size r script into SQL . Get the mesh size from logbooks. 
 
-drop table eflalo_metiers.voyage_mesh_size;
+drop table  if exists  eflalo_metiers.voyage_mesh_size;
 
 create table eflalo_metiers.voyage_mesh_size as 
 with a as (    
@@ -241,7 +241,7 @@ group by ft_Ref, dcf_gearcode, le_div;
 
 
  --- 1. create UK METIERS 
-	drop table eflalo_metiers.uk_metiers_2018;
+	drop table  if exists eflalo_metiers.uk_metiers_2018;
 	create table eflalo_metiers.uk_metiers_2018  as 
   
 	with a as ( 
@@ -271,7 +271,7 @@ group by ft_Ref, dcf_gearcode, le_div;
 
 --- 2. look up equivalence between UK METIERS and DCF_METIERS in eflalo_metiers.metiers_table TABLE
 
-drop table eflalo_metiers.dcf_metiers_2018;
+drop table  if exists  eflalo_metiers.dcf_metiers_2018;
 create table eflalo_metiers.dcf_metiers_2018  as 
 with a as ( 
 	select * from eflalo_metiers.uk_metiers_2018 
