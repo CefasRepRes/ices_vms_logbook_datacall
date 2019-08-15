@@ -150,13 +150,14 @@ with a as (
 select DISTINCT "FT_REF" , "LE_GEAR","LE_DIV", "DCFcode" dcf_gearcode from ( 
 			 select DISTINCT "FT_REF", 
 				 case 
-				 when "LE_GEAR" IN ('GN', 'GNC' ) THEN 'GNS' 
+				 when "LE_GEAR" IN ('GN', 'GNC','GEN' ) THEN 'GNS' 
 				 when  "LE_GEAR"  IN ('LL', 'LX' ) THEN 'LLS'
 				 when  "LE_GEAR"  IN ('TB', 'TBN') THEN 'OTB'
-				 when  "LE_GEAR"  IN ('MIS', 'NK', 'HF', 'RG') THEN 'MIS'
+				 when  "LE_GEAR"  IN ('MIS', 'NK', 'HF', 'RG','DRH') THEN 'MIS'
 				 when  "LE_GEAR"  = 'SV' THEN 'SSC'
 				 when  "LE_GEAR"  = 'LHM' THEN 'LHP'
 				 when  "LE_GEAR"  = 'FIX' THEN 'FPO'
+				  when  "LE_GEAR"  = 'TM' THEN 'OTM'
 				 ELSE  "LE_GEAR"  
 				 end as "LE_GEAR", 
 				 "LE_DIV" from eflalo.eflalo_2018 )  a 
@@ -202,13 +203,14 @@ with a as (
 	select DISTINCT "FT_REF" , "LE_GEAR","LE_MSZ", "LE_DIV" le_div, "DCFcode" dcf_gearcode from ( 
 				 select DISTINCT "FT_REF", 
 					 case 
-					 when "LE_GEAR" IN ('GN', 'GNC' ) THEN 'GNS' 
+					 when "LE_GEAR" IN ('GN', 'GNC','GEN' ) THEN 'GNS' 
 					 when  "LE_GEAR"  IN ('LL', 'LX' ) THEN 'LLS'
 					 when  "LE_GEAR"  IN ('TB', 'TBN') THEN 'OTB'
-					 when  "LE_GEAR"  IN ('MIS', 'NK', 'HF', 'RG') THEN 'MIS'
+					 when  "LE_GEAR"  IN ('MIS', 'NK', 'HF', 'RG','DRH') THEN 'MIS'
 					 when  "LE_GEAR"  = 'SV' THEN 'SSC'
 					 when  "LE_GEAR"  = 'LHM' THEN 'LHP'
 					 when  "LE_GEAR"  = 'FIX' THEN 'FPO'
+					  when  "LE_GEAR"  = 'TM' THEN 'OTM'
 					 ELSE  "LE_GEAR"  
 					 end as "LE_GEAR", 
 					 "LE_DIV" , "LE_MSZ" 
@@ -277,7 +279,7 @@ with a as (
 	select * from eflalo_metiers.uk_metiers_2018 
 	) , b as ( 
 
-	select  DISTINCT a.*, b.metier_lvl6  , min_mesh_size, max_mesh_size
+	select  DISTINCT a.*, case when le_msz_avg = 0 then b.metier_lvl6_proposal_2019 else   b.metier_lvl6 end as metier_lvl6,  min_mesh_size, max_mesh_size
 	from (Select distinct *from eflalo_metiers.metiers_tables_fao_areas_2019 where f_level  IN (  'DIVISION' , 'SUBAREA' )    )  b right join a   
 	on dcf_gearcode = gear  and a.target_taxa = b.target_taxa  
 		and (   le_msz_avg between min_mesh_size::numeric and max_mesh_size::numeric
@@ -403,6 +405,7 @@ select * from c where id in ( select * from d ) order by id ;
 update eflalo_metiers.dcf_metiers_2018 set metier_lvl6 =  'MIS_MIS_0_0_0' where metier_lvl6 IS NULL; 
 
 ---- 4.a UPDATE EFLALO TABLE WITH THE NEW CALCUALTED METIERS 
+update eflalo.eflalo_2017 b  set "LE_MET" =  NULL; 
 
 with a as ( 
 	select ft_ref, dcf_gearcode, le_div , metier_lvl6  from eflalo_metiers.dcf_metiers_2018  
@@ -415,7 +418,7 @@ update eflalo.eflalo_2018 b  set "LE_MET" = metier_lvl6 from a  where "FT_REF" =
 with daf as ( 
 	select "FT_REF" ft_ref, "LE_GEAR" le_gear, "LE_DIV" le_div 
 	from 
-	( select * from eflalo.eflalo_2018  WHERE "LE_GEAR"  IN  (  'GN', 'GNC',  'LL', 'LX', 'TB', 'TBN','MIS', 'NK', 'HF', 'RG' , 'SV', 'LHM' , 'FIX')    ) a -- where "FT_REF" = '900010510373' 
+	( select * from eflalo.eflalo_2018  WHERE "LE_GEAR"  IN  ( 'OT',  'GN', 'GNC', 'GEN', 'LL', 'LX', 'TB', 'TBN','MIS', 'NK', 'HF', 'RG' , 'SV', 'LHM' , 'TM','FIX','DRH')     ) a -- where "FT_REF" = '900010510373' 
 	
 ) , 
 
@@ -424,13 +427,14 @@ daf_agg as (
 	 select DISTINCT ft_ref, 
 	 le_gear,
 	 case 
-	 when le_gear IN ('GN', 'GNC' ) THEN 'GNS' 
+	 when le_gear IN ('GN', 'GNC', 'GEN' ) THEN 'GNS' 
 	 when le_gear IN ('LL', 'LX' ) THEN 'LLS'
 	 when le_gear IN ('TB', 'TBN') THEN 'OTB'
-	 when le_Gear IN ('MIS', 'NK', 'HF', 'RG') THEN 'MIS'
+	 when le_Gear IN ('MIS', 'NK', 'HF', 'RG', 'DRH') THEN 'MIS'
 	 when le_gear = 'SV' THEN 'SSC'
 	 when le_gear = 'LHM' THEN 'LHP'
 	 when le_gear = 'FIX' THEN 'FPO'
+	 when le_gear = 'TM' THEN 'OTM'
 	 ELSE le_gear 
 	 end as le_gear_agg, 
 	 le_div	 
