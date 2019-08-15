@@ -31,13 +31,14 @@ with daf as (
 daf_agg as (
 	 select DISTINCT ft_ref, 
 	 case 
-	 when le_gear IN ('GN', 'GNC' ) THEN 'GNS' 
+	 when le_gear IN ('GN', 'GNC', 'GEN' ) THEN 'GNS' 
 	 when le_gear IN ('LL', 'LX' ) THEN 'LLS'
 	 when le_gear IN ('TB', 'TBN') THEN 'OTB'
-	 when le_Gear IN ('MIS', 'NK', 'HF', 'RG') THEN 'MIS'
+	 when le_Gear IN ('MIS', 'NK', 'HF', 'RG', 'DRH') THEN 'MIS'
 	 when le_gear = 'SV' THEN 'SSC'
 	 when le_gear = 'LHM' THEN 'LHP'
 	 when le_gear = 'FIX' THEN 'FPO'
+	  when le_gear = 'TM' THEN 'OTM'
 	 ELSE le_gear 
 	 end as le_gear, 
 	 le_div,	
