@@ -692,7 +692,7 @@ select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / co
 			  on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
 
 		  -- condition to apply to targeted assemblage 
-			 where leeuro_sum_dws > lekg_sum_spf_lpf*0.5 AND a.ft_ref IN ( 
+			 where lekg_sum_dws > lekg_sum_spf_lpf*0.5 AND a.ft_ref IN ( 
 					select ft_ref from eflalo_metiers.voyage_target_taxa where target_taxa = 'SPF'
 					)
 		 ) b
