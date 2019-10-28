@@ -11,7 +11,6 @@ null as SI_HARB,
 null as SI_STATE,
 CAST( isnull(iFV.VOYAGE_ID,0) AS BIGINT ) as SI_FT
 
-select *  
 --select the VMS points from foreign vessels 
 FROM   ( Select * from dbo.SatSighting   where  VessNat  NOT LIKE 'GB%'  and   YEAR( SightingDate ) = 2018) Sat left join dbo.D_VESSEL iDV
 on     SightingDate between VALID_FROM_DATE and VALID_TO_DATE
