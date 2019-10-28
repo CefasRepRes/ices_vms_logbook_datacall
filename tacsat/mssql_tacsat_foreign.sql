@@ -1,6 +1,8 @@
 
 select distinct 
 Sat.RSSNo as VE_REF,
+Sat.VessReg as VE_REF2, 
+Sat.VessNat as VE_NAT, 
 Sat.Latitude as SI_LATI,
 Sat.Longitude as SI_LONG,
 CAST (Sat.SightingDate as DATE ) as SI_DATE,
@@ -11,6 +13,7 @@ null as SI_HARB,
 null as SI_STATE,
 CAST( isnull(iFV.VOYAGE_ID,0) AS BIGINT ) as SI_FT
 
+ 
 --select the VMS points from foreign vessels 
 FROM   ( Select * from dbo.SatSighting   where  VessNat  NOT LIKE 'GB%'  and   YEAR( SightingDate ) = 2018) Sat left join dbo.D_VESSEL iDV
 on     SightingDate between VALID_FROM_DATE and VALID_TO_DATE
@@ -22,3 +25,4 @@ left outer join  F_VOYAGE iFV on  SightingDate  between  iFV.DEPARTURE_DATE_TIME
 -- filter fields with no voyage_id or no vessel  
 
 Order by  VE_REF,SI_FT,  SI_DATE, SI_TIME
+
