@@ -1242,9 +1242,9 @@
 	set target_taxa = 'DWS'
 	---- Creates two subsets with the taxa categories to compare their weights 
 	from 	(  
-				select   a.ft_Ref  ,a.dcf_gearcode, a.le_div,   leeuro_sum_dws,lekg_sum_spf_lpf  
+				select   a.ft_Ref  ,a.dcf_gearcode, a.le_div,   lekg_sum_dws,lekg_sum_spf_lpf  
 				from ( 
-					select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
+					select distinct ft_Ref, dcf_gearcode, le_div,lekg_sum lekg_sum_dws
 					from eflalo_metiers.voyage_taxa_stats 
 					where dcf_gearcode IN ('OTB', 'OTT') 
 						AND taxa = 'DWS' 
