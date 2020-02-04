@@ -1,3 +1,5 @@
+ 
+  
  ------- 2nd script to create metiers within SQL database --------
  /* This script creates and update the table voyage_target_taxa that identify the  TARGETED ASSAMBLAGE  by fishing TRIP */
  
@@ -5,710 +7,1302 @@
  --- Dependencies : 
  
 	--  TABLE: eflalo_metiers.voyage_taxa_stats
+	-- Contain the trip id, dcf gear code , division and the target assemblage taxa to be filled; 
 	 
 
-drop  table eflalo_metiers.voyage_target_taxa ;
-create table eflalo_metiers.voyage_target_taxa as   
-	select distinct ft_ref, dcf_gearcode ,le_div ,null as target_taxa from eflalo_metiers.voyage_taxa_stats;
+	drop  table if exists eflalo_metiers.voyage_target_taxa ;
+
+	create table eflalo_metiers.voyage_target_taxa as   
+		select distinct ft_ref, dcf_gearcode ,le_div ,null as target_taxa 
+		from eflalo_metiers.voyage_taxa_stats;
   
-	----  Not set and Misc . 
+	----  UPDATE: Update target assemblage taxa as NA for gears  Not set and Misc . 
 		--  Roi update: I have included the RG and SV gear codes in the list of MISCELANEA , since these dont appears in dcf_codes metadata table. 
 
 		
 	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'NA'
-	 from ( 
-	 
-		select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ( 'NOG', 'OTH', 'MISC', 'HF', 'NK')  --or  le_gear IN ( 'RG', 'SV' ) 
+	from	(  	 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ( 'NOG', 'OTH', 'MISC', 'HF', 'NK')  --or  le_gear IN ( 'RG', 'SV' ) 
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+		and a.le_div = b.le_div;
 
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 		
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;			
+	 
 		
-		)b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
-
-
-
- 
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa ;			
-	--select * from  eflalo_metiers.voyage_target_taxa; 
-	
-	--- DREDGES ( DRB and HMD) . Only MOL permitted
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'MOL' from ( 
-		select distinct ft_Ref, dcf_gearcode, le_div  from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ( 'DRB', 'HMD') 
-		)b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and   a.le_div = b.le_div;
-	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa ;
+		
+	--------------------------------------------------
+	--- DREDGES 
+	--- Permitted: MOL    
+	--- Conditions: 1.- Trips using  ( 'DRB', 'HMD')  gears
+	--------------------------------------------------
 	
 	
-	--- LINES AND SEINES   . Only DWS and DEF permitted ----
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'MOL' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div  
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ( 'DRB', 'HMD') 
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+		and   a.le_div = b.le_div;
+	
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;
+	
+	---------------------------------------------------------
+	--- LINES AND SEINES    
+	--- Permitted: DWS and DEF
+	--- Conditions: 1.- Trips using ('LLS','GTR','SSC','SDN','SPR')  = 'DEF'
+	---				2.- Trips using 'LLS' = 'DWS' when the TOTAL CATCH WEIGHT of 'DWS' > TOTAL CATCH WEIGHT of 'DEF'
+	---------------------------------------------------------
 
 
+	-- Condition 1	
 
 	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('LLS','GTR','SSC','SDN','SPR') ) b 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('LLS','GTR','SSC','SDN','SPR') 
+			) b 
 	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+	-- Condition 2	
+
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select   a.ft_Ref  , a.dcf_gearcode, a.le_div,  lekg_sum_dws,lekg_sum_def  
-					from ( 
-						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_dws 
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('LLS') AND taxa = 'DWS' 
-					)a 
-				    left join ( 
-						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_def 
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('LLS') AND taxa = 'DEF' 
-					) b 
-				        on a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div 
-				  -- condition to apply to targeted assemblage 
-				     where lekg_sum_dws > lekg_sum_def ) b
+	from 	(  
+				select   a.ft_Ref  , a.dcf_gearcode, a.le_div,  lekg_sum_dws,lekg_sum_def  
+				from	( 	 
+							select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_dws 
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('LLS') 
+								and taxa = 'DWS' 
+						)a 
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_def 
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('LLS') 
+								and taxa = 'DEF' 
+						) b 
+				on a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div 
+			  -- condition to apply to targeted assemblage 
+				where lekg_sum_dws > lekg_sum_def 
+			) b
 	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
+
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;  
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa ; --where  target_taxa = 'MOL'
 	
-	
-	---  HAND AND POLE LINES (LHP)     . Only DWS and DEF permitted ----
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'FIF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('LHP')  ) b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'CEP' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('LHP') and maxval = 'CEP')b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div; 
 	 
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL';
+	---------------------------------------------------------
+	--- HAND AND POLE LINES    
+	--- Permitted: DWS and DEF
+	--- Conditions: 1.-  Trips using ('LHP')  = 'FIF'  
+	---				2.-  Trips using 'LHP' = 'CEP' when the MAX VALUE IS 'CEP'  
+	---------------------------------------------------------
+	
+	-- Condition 1: 
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'FIF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('LHP')  
+			) b 
+	where a.ft_ref = b.ft_ref 
+	and a.dcf_gearcode = b.dcf_gearcode 
+	and a.le_div = b.le_div;
+	
+	-- Condition 2: 
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'CEP' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('LHP') and maxval = 'CEP'
+			)b 
+	where a.ft_ref = b.ft_ref 
+	and a.dcf_gearcode = b.dcf_gearcode 
+	and a.le_div = b.le_div; 
+	 
+	
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;  
 	
 	
-	---  TROLLING (LTL) . Only LPF  ----
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'LPF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('LTL')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;	 
+ 
+	---------------------------------------------------------
+	--- TROLLING  
+	--- Permitted: LTL  
+	--- Conditions: 1.- Trips using ('LTL')  = 'LPF'  
+	--------------------------------------------------------
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
+		-- Condition 1: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'LPF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('LTL')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+	and a.dcf_gearcode = b.dcf_gearcode 
+	and a.le_div = b.le_div;	 
 	
-	----------------------------------------------------
-	---  BEACH AN BOAT SEINES  (SB)     . Only FIF  ----
-	----------------------------------------------------
 	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('SB') group by maxwgt;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('SB') group by maxval;
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;  
+	
+	 
+	
+	---------------------------------------------------------
+	--- BEACH AN BOAT SEINES  
+	--- Permitted: FIF  
+	--- Conditions: 1.- Trips using ('SB')  = 'LPF'  
+	--------------------------------------------------------
+	
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('SB') group by maxwgt;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('SB') group by maxval;
 
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'FIF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('SB')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'FIF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('SB')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+	and a.dcf_gearcode = b.dcf_gearcode 
+	and a.le_div = b.le_div;
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
+
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;  
+		
+	 
 	
-	------------------------------------------
-	---  FYKE NETS  (FYK)     . Only DEF  ----
-	------------------------------------------
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('FYK') group by maxwgt;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('FYK') group by maxval;
+	---------------------------------------------------------
+	--- FYKE NETS   
+	--- Permitted: DEF  
+	--- Conditions: 1.- Trips using ('FYK')  = 'DEF'  
+	--------------------------------------------------------
+	
+	
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('FYK') group by maxwgt;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('FYK') group by maxval;
 
 	
 	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode,le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('FYK')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;	
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode,le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('FYK')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+		and a.le_div = b.le_div;	
 
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa ;--where  target_taxa = 'MOL'
-	
-	
-	---  DRIFT NETS  (GND)     . Only SPF or DEF depends on weights  ----
-	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('GND') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('GND') group by maxval order by count;
+	  
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
 
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div  from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('GND')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;	 
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;  
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF'
+ 	
+	---------------------------------------------------------
+	--- DRIFT NETS  
+	--- Permitted: SPF and DEF 
+	--- Conditions: 1.- Trips using ('GND')  = 'SPF'  
+	---				2.- Trips using ('GND')  = 'DEF' when the TOTAL CATCH WEIGHT of 'DEF' > TOTAL CATCH WEIGHT of 'SPF'
+	--------------------------------------------------------
+	
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('GND') group by maxwgt order by count;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('GND') group by maxval order by count;
+
+	--- Condition 1: 
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div  
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('GND') 
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+		and a.le_div = b.le_div;	 
+	
+	--- Condition 2: 
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DEF'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select  a.ft_Ref, a.dcf_gearcode, a.le_div,lekg_sum_def,lekg_sum_spf  
-					from ( 
-						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_def 
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('GND') AND taxa = 'DEF' 
-					)a 
-				    left join ( 
-						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_spf
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('GND') AND taxa = 'SPF' 
-					)b 
-				       on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+	from 	(  
+				select  a.ft_Ref, a.dcf_gearcode, a.le_div,lekg_sum_def,lekg_sum_spf  
+				from 	( 
+							select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_def 
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('GND') 
+								AND taxa = 'DEF' 
+						)a 
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_spf
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('GND') 
+								AND taxa = 'SPF' 
+						)b 
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div
 				  -- condition to apply to targeted assemblage 
-				     where lekg_sum_def > lekg_sum_spf ) b
+				where lekg_sum_def > lekg_sum_spf 
+			) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+		and a.le_div = b.le_div;
+	
+	
+	
+	--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;  
+	
+	
+ 	
+	---------------------------------------------------------
+	--- DRIFT LONG LINERS 
+	--- Permitted: LPF ,SPF, DWS and DEF 
+	--- Conditions: 1.- Trips using ('LLD')  = 'DEF'  
+	---				2.- Trips using ('LLD')  = 'LPF' when the TOTAL CATCH WEIGHT of 'LPF' > TOTAL CATCH WEIGHT of 'DEF'
+	---				3.- Trips using ('LLD')  = 'SPF' when the TOTAL CATCH WEIGHT of 'SPF' > HALF of TOTAL CATCH WEIGHT of 'DEF'
+	---				4.- Trips using ('LLD')  = 'DWS' when the TOTAL CATCH WEIGHT of 'DWS' > HALF of TOTAL CATCH WEIGHT of 'DEF'
+	--------------------------------------------------------
+	
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('LLD') group by maxwgt order by count;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('LLD') group by maxval order by count;
+
+	--- Condition 1: 
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DEF' 
+	from	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('LLD')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+	and a.dcf_gearcode = b.dcf_gearcode 
+	and a.le_div = b.le_div;	 
+	
+	--- Condition 2: 
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'LPF'
+			---- Creates two subsets with the taxa categories to compare their weights 
+	from 	(  
+				select   a.ft_Ref  , a.dcf_gearcode,a.le_div,  lekg_sum_def,lekg_sum_lpf  
+				from 	( 
+							select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_lpf
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('LLD') 
+								and taxa = 'LPF' 
+						)a 
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_def
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('LLD') 
+								and taxa = 'DEF' 
+						)b 
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div
+				  -- condition to apply to targeted assemblage 
+				where lekg_sum_lpf > lekg_sum_def 
+			) b
 	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
 	
+	--- Condition 3: 
 	
-	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
-	
-
-	
-	---  DRIFT LONG LINERS  (LLD)     . Only LPF, DWS or DEF depends on weights ----
-	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('LLD') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('LLD') group by maxval order by count;
-
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('LLD')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;	 
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'LPF'
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select   a.ft_Ref  , a.dcf_gearcode,a.le_div,  lekg_sum_def,lekg_sum_lpf  
-					from ( 
-						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_lpf
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('LLD') AND taxa = 'LPF' 
-					)a 
+	from 	(  
+					select  a.ft_Ref , a.dcf_gearcode , a.le_div,  lekg_sum_def,lekg_sum_spf  
+					from 	( 
+								select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_spf
+								from eflalo_metiers.voyage_taxa_stats 
+								where dcf_gearcode IN ('LLD') 
+									and taxa = 'SPF' 
+							)a 
 				    left join ( 
-						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_def
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('LLD') AND taxa = 'DEF' 
-					)b 
-				        on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+								select distinct ft_Ref, dcf_gearcode,le_div,lekg_sum*0.5 lekg_sum_def 
+								from eflalo_metiers.voyage_taxa_stats 
+								where dcf_gearcode IN ('LLD') 
+									and taxa = 'DEF' 
+								)b 
+				    on  a.ft_ref = b.ft_ref 
+						and a.dcf_gearcode = b.dcf_gearcode 
+						and a.le_div = b.le_div
 				  -- condition to apply to targeted assemblage 
-				     where lekg_sum_lpf > lekg_sum_def ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF'
+				    where lekg_sum_spf > lekg_sum_def 
+			) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+			and a.le_div = b.le_div;
+
+
+	--- Condition 4: 
+
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select  a.ft_Ref , a.dcf_gearcode , a.le_div,  lekg_sum_def,lekg_sum_spf  
-					from ( 
-						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_spf
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('LLD') AND taxa = 'SPF' 
-					)a 
-				    left join ( 
-						select distinct ft_Ref, dcf_gearcode,le_div,lekg_sum*0.5 lekg_sum_def 
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('LLD') AND taxa = 'DEF' 
-					)b 
-				        on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
-				  -- condition to apply to targeted assemblage 
-				     where lekg_sum_spf > lekg_sum_def ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
-
-
-
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
-			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select  a.ft_Ref , a.dcf_gearcode , a.le_div,  lekg_sum_def,lekg_sum_dws  
-					from ( 
+	from 	(  
+				select  a.ft_Ref , a.dcf_gearcode , a.le_div,  lekg_sum_def,lekg_sum_dws  
+				from ( 
 						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_dws
 						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('LLD') AND taxa = 'DWS' 
-					)a 
-				    left join ( 
+						where dcf_gearcode IN ('LLD') 
+						and taxa = 'DWS' 
+				)a 
+				left join ( 
 						select distinct ft_Ref, dcf_gearcode,le_div,lekg_sum*0.5 lekg_sum_def 
 						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('LLD') AND taxa = 'DEF' 
-					)b 
-				        on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
-				  -- condition to apply to targeted assemblage 
-				     where lekg_sum_dws > lekg_sum_def ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div;
+						where dcf_gearcode IN ('LLD') 
+						and taxa = 'DEF' 
+				)b 
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div
+				-- condition to apply to targeted assemblage 
+				where lekg_sum_dws > lekg_sum_def 
+			) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+		and a.le_div = b.le_div;
 	
 	
 	
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
-	
-	
-		---  Mid water otter  (OTM)     . Only SPF or DEF has additional UK metier by species.  SPF unles DEF weight is more than half the total weight  ----
-	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('OTM') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('OTM') group by maxval order by count;
 
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF' 
-	from ( select distinct ft_Ref, dcf_gearcode , le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTM')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;	 
+	--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ;  	
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF'
+  	
+	---------------------------------------------------------
+	--- MID WATER OTTERS 
+	--- Permitted: SPF and  DEF (It has additional UK metier by species) 
+	--- Conditions: 1.- Trips using ('OTM')  = 'SPF'  
+	---				2.- Trips using ('OTM')  = 'DEF' when the TOTAL CATCH WEIGHT of 'DEF' > HALF of TOTAL CATCH WEIGHT  
+	--------------------------------------------------------
+	
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('OTM') group by maxwgt order by count;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('OTM') group by maxval order by count;
+
+	--- Condition 1:
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode , le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('OTM')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;	 
+	
+	--- Condition 2:
+
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DEF'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select   a.ft_Ref , a.dcf_gearcode , a.le_div,  lekg_sum_def,halftotwgt  
-					from ( 
-						select distinct ft_Ref, dcf_gearcode,le_div,  lekg_sum lekg_sum_def 
+	from 	(  
+				select   a.ft_Ref , a.dcf_gearcode , a.le_div,  lekg_sum_def,halftotwgt  
+				from ( 
+						select distinct ft_Ref, dcf_gearcode,le_div, lekg_sum lekg_sum_def 
 						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('OTM') AND taxa = 'DEF' 
+						where dcf_gearcode IN ('OTM') 
+							and taxa = 'DEF' 
 					)a 
-				    left join ( 
+				left join ( 
 						select distinct ft_Ref, dcf_gearcode,le_div,  halftotwgt halftotwgt
 						from eflalo_metiers.voyage_taxa_stats 
 						where dcf_gearcode IN ('OTM') 
 					)b 
-				         on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode  
+					and a.le_div = b.le_div
 				  -- condition to apply to targeted assemblage 
-				     where lekg_sum_def > halftotwgt ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+				where lekg_sum_def > halftotwgt 
+			) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
 	
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
+	--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ; 
 
 
 
-
----  Mid water pair and purse seine   (PRM and PS). Only SPF or LPF. These are SPF unles LPFWT is more than SPFWT  ----
+ 
+	---------------------------------------------------------
+	--- MID WATER PAIR and PURSE SEINE  
+	--- Permitted: SPF and  LPF   
+	--- Conditions: 1.- Trips using ('PRM', 'PS')  = 'SPF'  
+	---				2.- Trips using ('PRM', 'PS')  = 'LPF' when the TOTAL CATCH WEIGHT of 'LPF' >   TOTAL CATCH WEIGHT   of 'SPF'
+	--------------------------------------------------------
 	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('PTM','PS') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('PTM', 'PS') group by maxval order by count;
-
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('PTM', 'PS')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'LPF'
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('PTM','PS') group by maxwgt order by count;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('PTM', 'PS') group by maxval order by count;
+
+	-- Condition 1: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF' 
+	from 	(
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('PTM', 'PS')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
+	
+	-- Condition 2: 
+
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'LPF'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select   a.ft_Ref , a.dcf_gearcode ,a.le_div,   lekg_sum_lpf,lekg_sum_spf  
-					from ( 
-						select distinct ft_Ref, dcf_gearcode,le_div,  lekg_sum lekg_sum_lpf 
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('PTM', 'PS') AND taxa = 'LPF' 
-					)a 
-				    left join ( 
-						select distinct ft_Ref, dcf_gearcode,le_div,  lekg_sum lekg_sum_spf
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('PTM', 'PS')  AND taxa = 'SPF'
-					)b 
-				         on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div   
+	from (  	select   a.ft_Ref , a.dcf_gearcode ,a.le_div,   lekg_sum_lpf,lekg_sum_spf  
+				from 	( 
+							select distinct ft_Ref, dcf_gearcode,le_div,  lekg_sum lekg_sum_lpf 
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('PTM', 'PS') 
+							and taxa = 'LPF' 
+						)a 
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode,le_div,  lekg_sum lekg_sum_spf
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('PTM', 'PS')  AND taxa = 'SPF'
+						)b 
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div   
 				  -- condition to apply to targeted assemblage 
-				     where lekg_sum_lpf > lekg_sum_spf ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+				where lekg_sum_lpf > lekg_sum_spf ) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
 	
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
-	
+--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ; 	
 	
 
 
----  Pots and Traps    (FPO). ** KB had groped Misc (OTH) in with this either CRU MOL or FIF  ----
-	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('FPO') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('FPO') group by maxval order by count;
+ 	---------------------------------------------------------
+	--- POTS and TRAPS 
+	--- Permitted: CRU, MOL and  FIF  
+	--- Conditions: 1.- Trips using ('FPO')  = 'FIF' 
+	---				2.- Trips using ('FPO')  = 'CRU' when the MAXIMUM CATCH VALUE IN  ('CRU','CRUDWS')
+	---				3.- Trips using ('FPO')  = 'MOL' when the MAXIMUM CATCH VALUE IN  ('MOL')	
+	---				4.- Trips using ('FPO')  = 'MOL' when the TOTAL CATCH VALUE of ('CRU,'MOL') >=  HALF of TOTAL CATCH VALUE 
+	---												and TOTAL CATCH VALUE of ('MOL') >= TOTAL CATCH VALUE of ('CRU') 
+	---				5.- Trips using ('FPO')  = 'CRU' when the TOTAL CATCH VALUE of ('CRU,'MOL') >=  HALF of TOTAL CATCH VALUE 
+	---												and TOTAL CATCH VALUE of ('MOL') < TOTAL CATCH VALUE of ('CRU') 	
+	--------------------------------------------------------
+	--select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('FPO') group by maxwgt order by count;
+	--select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('FPO') group by maxval order by count;
 
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'FIF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('FPO')  ) b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	 -- Condition 1: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'FIF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('FPO')  
+			) b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
- 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'CRU' 
-	from ( select distinct  ft_Ref, dcf_gearcode, le_div  from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('FPO') AND maxval IN ('CRU','CRUDWS')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+ 	-- Condition 2: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'CRU' 
+	from 	( 
+				select distinct  ft_Ref, dcf_gearcode, le_div  
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('FPO') 
+					and maxval IN ('CRU','CRUDWS')  
+				)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'MOL' 
-	from ( select distinct  ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('FPO') AND maxval IN ('MOL')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	-- Condition 3:
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'MOL' 
+	from 	(
+				select distinct  ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('FPO') 
+					and maxval IN ('MOL')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'MOL'
+	-- Condition 4:	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'MOL'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select   a.ft_Ref  , a.dcf_gearcode, a.le_div,  leeuro_sum_mol_cru,halftotval , leeuro_sum_mol, leeuro_sum_cru
-					from ( 
-						select distinct ft_Ref, dcf_gearcode, le_div,sum(leeuro_sum) leeuro_sum_mol_cru 
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('FPO') AND taxa IN ('MOL' , 'CRU' )
-						group by ft_Ref, dcf_gearcode, le_div
-					)a 
-				    left join ( 
-						select distinct ft_Ref, dcf_gearcode, le_div,halftotval  
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('FPO')   
-					)b 
-				      on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
-				    left join ( 
+	from 	(  
+				select   a.ft_Ref  , a.dcf_gearcode, a.le_div,  leeuro_sum_mol_cru,halftotval , leeuro_sum_mol, leeuro_sum_cru
+				from 	( 
+							select distinct ft_Ref, dcf_gearcode, le_div,sum(leeuro_sum) leeuro_sum_mol_cru 
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('FPO') 
+							AND taxa IN ('MOL' , 'CRU' )
+							group by ft_Ref, dcf_gearcode, le_div
+						)a 
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode, le_div,halftotval  
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('FPO')   
+						)b 
+				on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_mol  
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('FPO')   
+								and taxa = 'MOL'
+						) c  
+				on  b.ft_ref = c.ft_ref and b.dcf_gearcode = c.dcf_gearcode
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_cru  
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('FPO')   AND taxa = 'CRU'
+						) d 
+				on  c.ft_ref = d.ft_ref 
+					and c.dcf_gearcode = d.dcf_gearcode
+				  -- condition to apply to targeted assemblage 
+				 where leeuro_sum_mol_cru  >= halftotval AND leeuro_sum_mol >= leeuro_sum_cru 
+			) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
+
+	-- Condition 5:	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'CRU'
+			---- Creates two subsets with the taxa categories to compare their weights 
+	from (  	
+				select   a.ft_Ref , a.dcf_gearcode , a.le_div, leeuro_sum_mol_cru,halftotval , leeuro_sum_mol, leeuro_sum_cru
+				from 	( 
+							select distinct ft_Ref, dcf_gearcode, le_div,sum(leeuro_sum) leeuro_sum_mol_cru 
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('FPO') AND taxa IN ('MOL' , 'CRU' )
+							group by ft_Ref, dcf_gearcode, le_div
+						)a 
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode, le_div,halftotval  
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('FPO')   
+						)b 
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div
+				left join ( 
 						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_mol  
 						from eflalo_metiers.voyage_taxa_stats 
 						where dcf_gearcode IN ('FPO')   AND taxa = 'MOL'
-					) c  
-				    on  b.ft_ref = c.ft_ref and b.dcf_gearcode = c.dcf_gearcode
-				   left join ( 
+				) c  
+				on  b.ft_ref = c.ft_ref 
+					and b.dcf_gearcode = c.dcf_gearcode
+				left join ( 
 						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_cru  
 						from eflalo_metiers.voyage_taxa_stats 
 						where dcf_gearcode IN ('FPO')   AND taxa = 'CRU'
-					) d 
-				      on  c.ft_ref = d.ft_ref and c.dcf_gearcode = d.dcf_gearcode
+				) d 
+				on  c.ft_ref = d.ft_ref 
+				and c.dcf_gearcode = d.dcf_gearcode
 				  -- condition to apply to targeted assemblage 
-				     where leeuro_sum_mol_cru  >= halftotval AND leeuro_sum_mol >= leeuro_sum_cru ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'CRU'
-			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select   a.ft_Ref , a.dcf_gearcode , a.le_div, leeuro_sum_mol_cru,halftotval , leeuro_sum_mol, leeuro_sum_cru
-					from ( 
-						select distinct ft_Ref, dcf_gearcode, le_div,sum(leeuro_sum) leeuro_sum_mol_cru 
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('FPO') AND taxa IN ('MOL' , 'CRU' )
-						group by ft_Ref, dcf_gearcode, le_div
-					)a 
-				    left join ( 
-						select distinct ft_Ref, dcf_gearcode, le_div,halftotval  
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('FPO')   
-					)b 
-				     on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
-				    left join ( 
-						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_mol  
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('FPO')   AND taxa = 'MOL'
-					) c  
-				     on  b.ft_ref = c.ft_ref and b.dcf_gearcode = c.dcf_gearcode
-				   left join ( 
-						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_cru  
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('FPO')   AND taxa = 'CRU'
-					) d 
-				    on  c.ft_ref = d.ft_ref and c.dcf_gearcode = d.dcf_gearcode
-				  -- condition to apply to targeted assemblage 
-				     where leeuro_sum_mol_cru  >= halftotval AND leeuro_sum_mol < leeuro_sum_cru ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+				where leeuro_sum_mol_cru  >= halftotval 
+					and leeuro_sum_mol < leeuro_sum_cru ) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
 	
 	
-	select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
+
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ; 	
+	
 	
 	
 	
 	
 
 
----  bottom pair PTB   # DEF CRU  or SPF  ----
-	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('PTB') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('PTB') group by maxval order by count;
-
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'CRU' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('PTB')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
-	
+ 	---------------------------------------------------------
+	--- BOTTOM PAIR TRAWLERS
+	--- Permitted: DEF, CRU and  SPF  
+	--- Conditions: 1.- Trips using ('PTB')  = 'CRU' 
+	---				2.- Trips using ('PTB')  = 'DEF' when the MAXIMUM CATCH WEIGHT IN  ('DEF')
+	---				3.- Trips using ('PTB')  = 'SPF' when the MAXIMUM CATCH WEIGHT IN  ('SPF')	
+	---				4.- Trips using ('PTB')  = 'DEF' when the MAXIMUM CATCH VALUE IN  ('DEF')
+	--------------------------------------------------------
  	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('PTB') AND maxwgt IN ('DEF')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('PTB') group by maxwgt order by count;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('PTB') group by maxval order by count;
+
+	--- Condition 1: 	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'CRU' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('PTB')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+		and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('PTB') AND maxwgt IN ('SPF')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+ 	--- Condition 2:
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DEF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('PTB') AND maxwgt IN ('DEF')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('PTB') AND maxval IN ('DEF')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	--- Condition 3:
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('PTB') AND maxwgt IN ('SPF')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
+	
+	--- Condition 4:
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DEF' 
+	from ( 
+			select distinct ft_Ref, dcf_gearcode, le_div 
+			from eflalo_metiers.voyage_taxa_stats 
+			where dcf_gearcode IN ('PTB') AND maxval IN ('DEF')  
+		)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
 
-select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
+		--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ; 	
+	
  
+
  
+ 	--------------------------------------------------------------------------------------------------------------------------------------------
+	--- BSET GILL NETS 
+	--- Permitted: DEF, CRU, DWS and  SPF  
+	--- Conditions: 1.- Trips using ('GNS')  = 'CRU' 
+	---				2.- Trips using ('GNS')  = 'DEF' when the MAXIMUM CATCH WEIGHT IN  ('DEF')
+	---				3.- Trips using ('GNS')  = 'SPF' when the MAXIMUM CATCH WEIGHT IN  ('SPF')	
+	---				4.- Trips using ('GNS')  = 'DWS' when the MAXIMUM CATCH WEIGHT IN  ('DWS')
+	---				5.- Trips using ('GNS')  = 'DWS' when the MAXIMUM CATCH WEIGHT IN  ('DWS') > HALF of MAXIMUM CATCH WEIGHT IN  ('DEF') 
+	---												 and trip using GNS already defined as DEF in Condition 1		
+	---				6.- Trips using ('GNS')  = 'DWS' when the MAXIMUM CATCH VALUE IN  ('DWS') > HALF of MAXIMUM CATCH VALUE IN  ('DEF') 
+	---												 and trip using GNS already defined as DEF in Condition 1	
+	---				7.- Trips using ('GNS')  = 'DWS' when the MAXIMUM CATCH VALUE IN  ('DWS') > HALF of MAXIMUM CATCH VALUE IN  ('CRU') 
+	---												 and trip using GNS already defined as DEF in Condition 1)
+	---				8.- Trips using ('GNS')  = 'DWS' when the MAXIMUM CATCH WEIGHT IN  ('DWS') > HALF of MAXIMUM CATCH VALUE IN  ('SPF', 'LPF') 
+	---												 and trip using GNS already defined as DEF in Condition 1)
+	--------------------------------------------------------------------------------------------------------------------------------------------
+	
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('GNS') group by maxwgt order by count;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('GNS') group by maxval order by count;
  
-
----------------------------------------------------------
----  bset gill nets GNS # DEF CRU DWS or SPF   ----
----------------------------------------------------------
-
+	--- Condition 1: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'CRU' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('GNS')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+	and a.dcf_gearcode = b.dcf_gearcode 
+	and a.le_div = b.le_div;
 	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('GNS') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('GNS') group by maxval order by count;
-
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'CRU' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('GNS')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+ 	--- Condition 2: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DEF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('GNS') AND maxwgt IN ('DEF')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
- 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('GNS') AND maxwgt IN ('DEF')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	--- Condition 3: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('GNS') AND maxwgt IN ('SPF')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('GNS') AND maxwgt IN ('SPF')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	--- Condition 4: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('GNS') AND maxwgt IN ('DWS')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('GNS') AND maxwgt IN ('DWS')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
-	
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+	--- Condition 5: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select   a.ft_Ref  , b.dcf_gearcode, a.le_div,   lekg_sum_def,lekg_sum_dws  
-					from ( 
+	from 	( 
+				select   a.ft_Ref  , b.dcf_gearcode, a.le_div,   lekg_sum_def,lekg_sum_dws  
+				from ( 
 						select distinct ft_Ref, dcf_gearcode, le_div,lekg_sum lekg_sum_dws
 						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('GNS') AND taxa = 'DWS' 
+						where dcf_gearcode IN ('GNS') 
+							and taxa = 'DWS' 
 					)a 
-				    left join ( 
+				left join ( 
 						select distinct ft_Ref, dcf_gearcode, le_div,lekg_sum lekg_sum_def
 						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('GNS')  AND taxa = 'DEF'
-					)b 
-				           on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+						where dcf_gearcode IN ('GNS')  
+							and taxa = 'DEF'
+				)b 
+				on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
 				  -- condition to apply to targeted assemblage 
-				     where lekg_sum_dws > lekg_sum_def*0.5 AND a.ft_ref IN ( 
-				     select ft_ref from eflalo_metiers.voyage_target_taxa 
-				     where target_taxa = 'DEF'
-				     )
-				 ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+				where lekg_sum_dws > lekg_sum_def*0.5 
+					and a.ft_ref IN ( 
+										select ft_ref 
+										from eflalo_metiers.voyage_target_taxa 
+										where target_taxa = 'DEF'
+									)
+			) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
-		update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+	--- Condition 6: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 			---- Creates two subsets with the taxa categories to compare their weights 
-			from (  select   a.ft_Ref , a.dcf_gearcode , a.le_div, leeuro_sum_def,leeuro_sum_dws  
-					from ( 
-						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('GNS') AND taxa = 'DWS' 
-					)a 
-				    left join ( 
-						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_def
-						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('GNS')  AND taxa = 'DEF'
-					)b 
-				           on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
-				  -- condition to apply to targeted assemblage 
-				     where leeuro_sum_dws > leeuro_sum_def*0.5 AND a.ft_ref IN ( select ft_ref from eflalo_metiers.voyage_target_taxa where target_taxa = 'DEF')
-				 ) b
+	from 	(  
+				select   a.ft_Ref , a.dcf_gearcode , a.le_div, leeuro_sum_def,leeuro_sum_dws  
+				from 	( 
+							select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('GNS') 
+								and taxa = 'DWS' 
+						)a 
+				left join ( 
+							select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_def
+							from eflalo_metiers.voyage_taxa_stats 
+							where dcf_gearcode IN ('GNS')  
+								and taxa = 'DEF'
+						)b 
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+						and a.le_div = b.le_div
+					  -- condition to apply to targeted assemblage 
+				where leeuro_sum_dws > leeuro_sum_def*0.5 
+					AND a.ft_ref IN ( 
+										select ft_ref 
+										from eflalo_metiers.voyage_target_taxa 
+										where target_taxa = 'DEF'
+									)
+			) b
 	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+	--- Condition 7: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 		---- Creates two subsets with the taxa categories to compare their weights 
-		from (  select   a.ft_Ref , a.dcf_gearcode   ,a.le_div, leeuro_sum_cru,leeuro_sum_dws  
-					from ( 
+	from (  	select   a.ft_Ref , a.dcf_gearcode   ,a.le_div, leeuro_sum_cru,leeuro_sum_dws  
+				from ( 
 						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
 						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('GNS') AND taxa = 'DWS' 
+						where dcf_gearcode IN ('GNS') 
+							and taxa = 'DWS' 
 					)a 
-					left join ( 
+				left join ( 
 						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_cru
 						from eflalo_metiers.voyage_taxa_stats 
-						where dcf_gearcode IN ('GNS')  AND taxa = 'CRU'
+						where dcf_gearcode IN ('GNS')  
+							and taxa = 'CRU'
 					)b 
-						 on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div
 				  -- condition to apply to targeted assemblage 
-					 where leeuro_sum_dws > leeuro_sum_cru*0.5
-						    AND a.ft_ref IN ( 
-											select ft_ref 
-											from eflalo_metiers.voyage_target_taxa 
-											where target_taxa = 'CRU'
-										)
+				where leeuro_sum_dws > leeuro_sum_cru*0.5
+					and a.ft_ref IN ( 
+										select ft_ref 
+										from eflalo_metiers.voyage_target_taxa 
+										where target_taxa = 'CRU'
+									)
 			 ) b
-   where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+   where a.ft_ref = b.ft_ref 
+	and a.dcf_gearcode = b.dcf_gearcode  
+	and a.le_div = b.le_div;
    
-   	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+   
+   --- Condition 8: 
+   	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 		---- Creates two subsets with the taxa categories to compare their weights 
-		from (  select   a.ft_Ref , a.dcf_gearcode   ,a.le_div,  lekg_sum_dws,lekf_sum_spf_lpf  
-				from ( 
-					select distinct ft_Ref, dcf_gearcode, le_div,lekg_sum lekg_sum_dws
-					from eflalo_metiers.voyage_taxa_stats 
-					where dcf_gearcode IN ('GNS') AND taxa = 'DWS' 
-				)a 
+	from 	(  
+				select   a.ft_Ref , a.dcf_gearcode   ,a.le_div,  lekg_sum_dws,lekf_sum_spf_lpf  
+				from 	( 
+						select distinct ft_Ref, dcf_gearcode, le_div,lekg_sum lekg_sum_dws
+						from eflalo_metiers.voyage_taxa_stats 
+						where dcf_gearcode IN ('GNS') 
+							and taxa = 'DWS' 
+						)a 
 				left join ( 
-					select distinct ft_Ref, dcf_gearcode, le_div,sum(lekg_sum) lekf_sum_spf_lpf
-					from eflalo_metiers.voyage_taxa_stats 
-					where dcf_gearcode IN ('GNS')  AND taxa IN ('SPF', 'LPF')
-					group by ft_Ref, dcf_gearcode, le_div
+						select distinct ft_Ref, dcf_gearcode, le_div,sum(lekg_sum) lekg_sum_spf_lpf
+						from eflalo_metiers.voyage_taxa_stats 
+						where dcf_gearcode IN ('GNS')  
+							and taxa IN ('SPF', 'LPF')
+						group by ft_Ref, dcf_gearcode, le_div
 				)b 
-					 on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div
 
 			  -- condition to apply to targeted assemblage 
-				 where lekg_sum_dws > lekf_sum_spf_lpf*0.5 AND a.ft_ref IN ( select ft_ref from eflalo_metiers.voyage_target_taxa where target_taxa = 'SPF')
-			 ) b
-   where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+				where lekg_sum_dws > lekg_sum_spf_lpf*0.5 
+					AND a.ft_ref IN ( 
+										select ft_ref 
+										from eflalo_metiers.voyage_target_taxa 
+										where target_taxa = 'SPF'
+									)
+			) b
+   where a.ft_ref = b.ft_ref 
+	and a.dcf_gearcode = b.dcf_gearcode  
+	and a.le_div = b.le_div;
 	
 	
 	
 
-select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
+	--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ; 	
+	
+ 
+
+ 	---------------------------------------------------------
+	--- BEAM TRAWLERS
+	--- Permitted: DEF and  CRU   
+	--- Conditions: - Trips using ('TBB' )  = 'DEF'  
+	---				- Trips using ('TBB' )  = 'CRU' when the MAXIMUM CATCH VALUE of ('CRU', 'CRUDW')    
+	--------------------------------------------------------
+		
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('TBB') group by maxwgt order by count;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('TBB') group by maxval order by count;
+
+	-- Condition 1: 
+	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('TBB')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+			and a.le_div = b.le_div;
+			
+	
+	 	
+	-- Condition 2: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'CRU' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('TBB') 
+					AND maxval IN ('CRU', 'CRUDW')  
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
+
+	--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ; 	
+	
 
  
 
----  Beam trawls TBB # for beam trawls its either DEF or CRU depending on value  ----
+ 	--------------------------------------------------------------------------------------------------------------------------------------------
+	--- BOTTOM OTTER and MULTI RIG OTTER TRAWLS
+	--- Permitted: CRU, MOL 
+	--- Conditions: 1.- Trips using ('OTB', 'OTT')  = 'CRU' when the MAXIMUM CATCH VALUE IN  ('CRU', 'CRUDW') 
+	---				2.- Trips using ('OTB', 'OTT')  = 'MOL' when the MAXIMUM CATCH VALUE IN  ('MOL', 'CEP') 
+	---				3.- Trips using ('OTB', 'OTT')  = 'DEF' when the MAXIMUM CATCH WEIGHT IN  ('DEF') 
+	---				4.- Trips using ('OTB', 'OTT')  = 'SPF' when the MAXIMUM CATCH WEIGHT IN   ('SPF','LPF')
+	---				5.- Trips using ('OTB', 'OTT')  = 'DEF' when the MAXIMUM CATCH VALUE IN   ('DEF')
+	---				6.- Trips using ('OTB', 'OTT')  = 'SPF' when the MAXIMUM CATCH VALUE IN   ('SPF','LPF')
+
+	 
+	---				7.- Trips using ('OTB', 'OTT')  = 'DWS' when the TOTAL CATCH WEIGHT IN  ('DWS') > HALF of TOTAL CATCH WEIGHT IN  ('DEF') 
+	---												 and trip using ('OTB', 'OTT') already defined as DEF in Condition 3 and 5		
+	---				8.- Trips using ('OTB', 'OTT')  = 'DWS' when the TOTAL CATCH VALUE IN  ('DWS') > HALF of TOTAL CATCH VALUE IN  ('DEF') 
+	---												 and trip using ('OTB', 'OTT') already defined as DEF in Condition 3 and 5	
+	---				9.- Trips using ('OTB', 'OTT')  = 'DWS' when the TOTAL CATCH VALUE IN  ('DWS') > HALF of TOTAL CATCH VALUE IN  ('CRU') 
+	---												 and trip using ('OTB', 'OTT') already defined as CRU in Condition 1	
+	---				10.- Trips using ('OTB', 'OTT')  = 'DWS' when the TOTAL CATCH WEIGHT IN  ('DWS') > HALF of TOTAL CATCH WEIGHT IN  ('SPF','LPF') 
+	---												 and trip using ('OTB', 'OTT') already defined as SPF in Condition 4 and 6	
+	---				11.- Trips using ('OTB', 'OTT')  = 'SPF' when the MAXIMUM CATCH WEIGHT IN    ('SPF','LPF') 
+	---												 and trip using ('OTB', 'OTT') and not defined target taxa (NULL)   	   
+	--------------------------------------------------------------------------------------------------------------------------------------------
+
 	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('TBB') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('TBB') group by maxval order by count;
-
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('TBB')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
-	 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'CRU' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('TBB') AND maxval IN ('CRU', 'CRUDW')  )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
-
-select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
-
-
---------------------------------------------------------------------------------------------------------------------------
----  bottom otter, and multi rig otter trawls  OTM OTT # Its CRU or MOL if these are the most valuble   ----
---------------------------------------------------------------------------------------------------------------------------
-	
-	select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('OTB', 'OTT') group by maxwgt order by count;
-	select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('OTB', 'OTT') group by maxval order by count;
+	-- select count(*), maxwgt from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('OTB', 'OTT') group by maxwgt order by count;
+	-- select count(*), maxval from eflalo_metiers.voyage_taxa_stats where dcf_gearcode IN ('OTB', 'OTT') group by maxval order by count;
 
  
-
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'CRU' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTB', 'OTT') AND maxval IN ('CRU', 'CRUDW') )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	--- Condition 1: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'CRU' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('OTB', 'OTT') 
+					AND maxval IN ('CRU', 'CRUDW') 
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
+			
+	--- Condition 2: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'MOL' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('OTB', 'OTT') 
+					AND maxval IN ('MOL', 'CEP') 
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'MOL' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTB', 'OTT') AND maxval IN ('MOL', 'CEP') )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+ 
+	--- Condition 2: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('OTB', 'OTT') 
+					AND maxwgt IN ('DWS')
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
+			
+	--- Condition 3: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DEF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('OTB', 'OTT') 
+					AND  maxwgt IN ('DEF')
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
+			
+			
+	--- Condition 4: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('OTB', 'OTT') 
+					AND  maxwgt IN ('SPF','LPF')
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;		
+ 
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTB', 'OTT') AND maxwgt IN ('DWS') )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	--- Condition 5: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DEF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('OTB', 'OTT') 
+					AND  maxval IN ('DEF') 
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;		
+ 
+	--- Condition 6: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF' 
+	from 	( 
+				select distinct ft_Ref, dcf_gearcode, le_div 
+				from eflalo_metiers.voyage_taxa_stats 
+				where dcf_gearcode IN ('OTB', 'OTT') 
+					AND  maxval IN ('SPF') 
+			)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div; 
+ 
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTB', 'OTT') AND maxwgt IN ('DEF') )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+ 
+	--- Condition 7: 
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTB', 'OTT') AND maxwgt IN ('SPF','LPF') )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DEF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTB', 'OTT') AND maxval IN ('DEF') )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTB', 'OTT') AND maxval IN ('SPF') )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
-	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 	---- Creates two subsets with the taxa categories to compare their weights 
-	from (  select   a.ft_Ref  , a.dcf_gearcode, a.le_div,  lekg_sum_dws,lekg_sum_def  
-			from ( 
-				select distinct ft_Ref, dcf_gearcode, le_div,lekg_sum lekg_sum_dws
-				from eflalo_metiers.voyage_taxa_stats 
-				where dcf_gearcode IN ('OTB', 'OTT') AND taxa = 'DWS' 
-			)a 
+	from ( 
+			select   a.ft_Ref  , a.dcf_gearcode, a.le_div,  lekg_sum_dws,lekg_sum_def  
+			from 	( 
+						select distinct ft_Ref, dcf_gearcode, le_div,lekg_sum lekg_sum_dws
+						from eflalo_metiers.voyage_taxa_stats 
+						where dcf_gearcode IN ('OTB', 'OTT') 
+							AND taxa = 'DWS' 
+					)a 
 			left join ( 
-				select distinct ft_Ref, dcf_gearcode, le_div, lekg_sum  lekg_sum_def
-				from eflalo_metiers.voyage_taxa_stats 
-				where dcf_gearcode IN ('OTB', 'OTT')  AND taxa IN ('DEF')
+						select distinct ft_Ref, dcf_gearcode, le_div, lekg_sum  lekg_sum_def
+						from eflalo_metiers.voyage_taxa_stats 
+						where dcf_gearcode IN ('OTB', 'OTT')  
+							AND taxa IN ('DEF')
 				 
-			)b 
-				using (ft_ref)
+					)b 
+			using (ft_ref)
 		  -- condition to apply to targeted assemblage 
-			 where lekg_sum_dws > lekg_sum_def*0.5 AND a.ft_ref IN ( select ft_ref from eflalo_metiers.voyage_target_taxa where target_taxa = 'DEF')
+			where lekg_sum_dws > lekg_sum_def*0.5 
+				AND a.ft_ref IN ( 
+								select ft_ref 
+								from eflalo_metiers.voyage_target_taxa 
+								where target_taxa = 'DEF'
+								)
 		 ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
-		update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+	
+	
+	--- Condition 8: 
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 	---- Creates two subsets with the taxa categories to compare their weights 
-	from (  select   a.ft_Ref  , b.dcf_gearcode ,a.le_div,   leeuro_sum_dws,leeuro_sum_def  
-			from ( 
-				select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
-				from eflalo_metiers.voyage_taxa_stats 
-				where dcf_gearcode IN ('OTB', 'OTT') AND taxa = 'DWS' 
-			)a 
-			left join ( 
-				select distinct ft_Ref, dcf_gearcode, le_div, leeuro_sum  leeuro_sum_def
-				from eflalo_metiers.voyage_taxa_stats 
-				where dcf_gearcode IN ('OTB', 'OTT')  AND taxa IN ('DEF')
+	from 	(  
+				select   a.ft_Ref  , b.dcf_gearcode ,a.le_div,   leeuro_sum_dws,leeuro_sum_def  
+				from ( 
+						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
+						from eflalo_metiers.voyage_taxa_stats 
+						where dcf_gearcode IN ('OTB', 'OTT') 
+							AND taxa = 'DWS' 
+					)a 
+				left join ( 
+						select distinct ft_Ref, dcf_gearcode, le_div, leeuro_sum  leeuro_sum_def
+						from eflalo_metiers.voyage_taxa_stats 
+						where dcf_gearcode IN ('OTB', 'OTT')  
+							AND taxa IN ('DEF')
 				 
-			)b 
-				 on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+				)b 
+				 on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div
 
 		  -- condition to apply to targeted assemblage 
-			 where leeuro_sum_dws > leeuro_sum_def*0.5 AND a.ft_ref IN ( select ft_ref from eflalo_metiers.voyage_target_taxa where target_taxa = 'DEF')
+			 where leeuro_sum_dws > leeuro_sum_def*0.5 
+				AND a.ft_ref IN ( 
+								select ft_ref 
+								from eflalo_metiers.voyage_target_taxa 
+								where target_taxa = 'DEF'
+								)
 		 ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+	--- Condition 9:
+	
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 	---- Creates two subsets with the taxa categories to compare their weights 
-	from (  select  a.ft_Ref  , b.dcf_gearcode,a.le_div,  leeuro_sum_dws,leeuro_sum_cru  
-			from ( 
-				select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
-				from eflalo_metiers.voyage_taxa_stats 
-				where dcf_gearcode IN ('OTB', 'OTT') AND taxa = 'DWS' 
-			)a 
-			left join ( 
-				select distinct ft_Ref, dcf_gearcode, le_div, leeuro_sum  leeuro_sum_cru
-				from eflalo_metiers.voyage_taxa_stats 
-				where dcf_gearcode IN ('OTB', 'OTT')  AND taxa IN ('CRU')
-				 
-			)b 
-			 on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+	from 	(  
+				select  a.ft_Ref  , b.dcf_gearcode,a.le_div,  leeuro_sum_dws,leeuro_sum_cru  
+				from 	( 
+						select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
+						from eflalo_metiers.voyage_taxa_stats 
+						where dcf_gearcode IN ('OTB', 'OTT') AND taxa = 'DWS' 
+				)a 
+				left join ( 
+						select distinct ft_Ref, dcf_gearcode, le_div, leeuro_sum  leeuro_sum_cru
+						from eflalo_metiers.voyage_taxa_stats 
+						where dcf_gearcode IN ('OTB', 'OTT')  AND taxa IN ('CRU')
+					 
+				)b 
+				on  a.ft_ref = b.ft_ref 
+					and a.dcf_gearcode = b.dcf_gearcode 
+					and a.le_div = b.le_div
 
-		  -- condition to apply to targeted assemblage 
-			 where leeuro_sum_dws > leeuro_sum_cru*0.5 AND a.ft_ref IN ( select ft_ref from eflalo_metiers.voyage_target_taxa where target_taxa = 'CRU')
+			  -- condition to apply to targeted assemblage 
+				 where leeuro_sum_dws > leeuro_sum_cru*0.5 
+					AND a.ft_ref IN ( 
+										select ft_ref 
+										from eflalo_metiers.voyage_target_taxa 
+										where target_taxa = 'CRU'
+									)
 		 ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode 
+		and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'DWS'
+	--- Condition 10: 
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'DWS'
 	---- Creates two subsets with the taxa categories to compare their weights 
-	from (  select   a.ft_Ref  ,a.dcf_gearcode, a.le_div,   leeuro_sum_dws,lekg_sum_spf_lpf  
-			from ( 
-				select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
-				from eflalo_metiers.voyage_taxa_stats 
-				where dcf_gearcode IN ('OTB', 'OTT') AND taxa = 'DWS' 
-			)a 
-			left join ( 
-				select distinct ft_Ref, dcf_gearcode, le_div, sum(lekg_sum)  lekg_sum_spf_lpf
-				from eflalo_metiers.voyage_taxa_stats 
-				where dcf_gearcode IN ('OTB', 'OTT')  AND taxa IN ('SPF','LPF')
-				group by ft_Ref, dcf_gearcode, le_div				 
-			)b 
-			  on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
+	from 	(  
+				select   a.ft_Ref  ,a.dcf_gearcode, a.le_div,   leeuro_sum_dws,lekg_sum_spf_lpf  
+				from ( 
+					select distinct ft_Ref, dcf_gearcode, le_div,leeuro_sum leeuro_sum_dws
+					from eflalo_metiers.voyage_taxa_stats 
+					where dcf_gearcode IN ('OTB', 'OTT') 
+						AND taxa = 'DWS' 
+				)a 
+				left join ( 
+					select distinct ft_Ref, dcf_gearcode, le_div, sum(lekg_sum)  lekg_sum_spf_lpf
+					from eflalo_metiers.voyage_taxa_stats 
+					where dcf_gearcode IN ('OTB', 'OTT')  
+						AND taxa IN ('SPF','LPF')
+					group by ft_Ref, dcf_gearcode, le_div				 
+				)b 
+				  on  a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode and a.le_div = b.le_div
 
-		  -- condition to apply to targeted assemblage 
-			 where lekg_sum_dws > lekg_sum_spf_lpf*0.5 AND a.ft_ref IN ( 
-					select ft_ref from eflalo_metiers.voyage_target_taxa where target_taxa = 'SPF'
-					)
-		 ) b
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+			  -- condition to apply to targeted assemblage 
+				 where lekg_sum_dws > lekg_sum_spf_lpf*0.5 
+					AND a.ft_ref IN ( 
+										select ft_ref 
+										from eflalo_metiers.voyage_target_taxa 
+										where target_taxa = 'SPF'
+									)
+			) b
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
-	update eflalo_metiers.voyage_target_taxa a set target_taxa = 'SPF' 
-	from ( select distinct ft_Ref, dcf_gearcode, le_div from eflalo_metiers.voyage_taxa_stats 
-	where dcf_gearcode IN ('OTB', 'OTT') AND maxval IN ('SPF','LPF') AND ft_ref IN ( select ft_ref from eflalo_metiers.voyage_target_taxa where target_taxa IS NULL) )b 
-	where a.ft_ref = b.ft_ref and a.dcf_gearcode = b.dcf_gearcode  and a.le_div = b.le_div;
+	
+	--- Condition 11:
+	update eflalo_metiers.voyage_target_taxa a 
+	set target_taxa = 'SPF' 
+	from ( 
+			select distinct ft_Ref, dcf_gearcode, le_div 
+			from eflalo_metiers.voyage_taxa_stats 
+			where dcf_gearcode IN ('OTB', 'OTT') 
+				AND maxval IN ('SPF','LPF') 
+				AND ft_ref IN 	( 	
+									select ft_ref 
+									from eflalo_metiers.voyage_target_taxa 
+									where target_taxa IS NULL
+								) 
+		)b 
+	where a.ft_ref = b.ft_ref 
+		and a.dcf_gearcode = b.dcf_gearcode  
+		and a.le_div = b.le_div;
 	
 
-select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop from eflalo_metiers.voyage_target_taxa; --where  target_taxa = 'MOL'
+	--- STATS of ASSIGNED TARGET ASSEMBLAGE TAXAS: 
+
+		select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / count(*) over( )::numeric , 2)   prop 
+		from eflalo_metiers.voyage_target_taxa ; 	
 
 
-	----- ANALYSE WHAT HAS NOT A METIER ASSIGNED 
 
+
+
+
+------------------------------------------------
+----- ANALYSE WHAT HAS NOT A METIER ASSIGNED ---
+------------------------------------------------
 	with a as ( select DISTINCT ft_ref from  eflalo_metiers.voyage_target_taxa  where target_taxa  IS NULL) 
 	select count(*) n_rows , dcf_gearcode, taxa 
 	from  (select * , count(*)  over( ) total from eflalo_metiers.voyage_taxa_stats   where ft_ref in ( select * from a ) ) b 
@@ -769,9 +1363,6 @@ select DISTINCT target_taxa, round( count(*) over(PARTITION BY target_taxa) / co
 
 
 	
-
-
-	 
 
 
 	 
