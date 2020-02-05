@@ -340,7 +340,11 @@ select * from c where id in ( select * from d ) order by id ;
 
 /* ANALYSIS OF NOT MATCHED METIERS */
 
+--- count number of unqiue trips by metiers not assigned -----
 
+select count(distinct ft_ref) , metier_a, region , metier_area  , dcf_gearcode  from eflalo_metiers.dcf_metiers_2019 where metier_lvl6 IS NULL  and dcf_gearcode != 'OTH'	
+	group by metier_a, region , metier_area , dcf_gearcode
+	order by  dcf_gearcode , region , metier_area, count  
 
 ----- ANALYSE WHAT ARE THE METIERS OTHERS THAN GEAR CODE 'OTH'(others ) WITH NOT ASSIGNED METIER
 	select  *   from eflalo_metiers.dcf_metiers_2018 where metier_lvl6 IS NULL  and dcf_gearcode != 'OTH'	 
