@@ -81,27 +81,7 @@ iFA.RECTANGLE_CODE as LE_RECT,
 iFA.FAO_FISHING_AREA_CODE as LE_DIV,
 --iDE.EFLALO2_AREA as LE_DIV,
 null as LE_MET,
-case 
-when iFC.species_code in ('CLH','CLS','CLV','CLX','CMM','COC','MUS','OYC','OYF','OYG','OYX','RAZ','SSD') then 'CLX'
-when iFC.species_code in ('ANT','ATP','BAZ','BER','BIB','BLP','BLU','BRB','BSF','CAX','CBC','CEO','CES','CMO','COX',
-'CUS','CYH','DEL','EEO','ELP','EPI','FIL','FLX','GPD','GRM','GRN','GRO','GRX','GUU','GUX','HKP','HPR','IOO','KCP','LUM',
-'LYY','MUL','NEC','NOT','OIL','OSG','PGO','PHO','PLA','POA','RCT','RED','RIB','ROL','RSE','SAN','SAO','SBA','SBG','SOS',
-'STU','TJX','TOP','TRA','TRI','USB','WEG','WRA','YEL','ZGP') then 'GRO'
-when iFC.species_code in  ('AMB','AMX','BIL','BLM','BOG','CJM','DCO','DOL','FRZ','GAR','LEE','LTA','MAS','MOP',
-'POX','SAA','SAE','SHD','SME','TUX') then 'PEL'
-when iFC.species_code in  ('JAD','JDP','RJA','RJB','RJC','RJE','RJF','RJG','RJH','RJI','RJM','RJN','RJO','RJR',
-'RJU','RJY','SKA','TTO','TTR') then 'RAJ'
-when iFC.species_code in  ('AGN','APQ','BSK','CFB','CWZ','CYO','CYP','DGH','DGS','DGX','ETR','FAL','GAG','GAM',
-'GSK','GUP','GUQ','HXC','LMA','MAK','OXN','POR','PTH','SBL','SHO','SPL','SPN','SPV','SPZ','SYC','SYR','SYT','SYX','THR') then 'SKH'
-when iFC.SPECIES_CODE in ('CRG','CRR','KCS','KCX','KEF','LIO','LOQ') then 'CRA'
-when iFC.SPECIES_CODE in ('CPR','CRW','PEN','TGS') then 'CRU'
-when iFC.species_code in ('GIS','ILL','SQA','SQP') then 'SQC'
-when iFC.species_code in ('PER','WHE') then 'GAS'
-when iFC.species_code in ('AJQ','COL','CUX','LFO','STF','URC') then 'ZZA'
-when iFC.species_code like 'SQE' then 'SQU'
-when iFC.species_code like 'OCM' then 'OCT'
-else iFC.species_code 
-end as LE_SPE,
+iFC.species_code  LE_SPE,
 LE_KG, 
 LE_EURO
 
