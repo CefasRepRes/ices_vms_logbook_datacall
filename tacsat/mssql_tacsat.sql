@@ -15,7 +15,7 @@ FROM (select * from dbo.F_VOYAGE  where VOYAGE_ID in (select ft_ref from rm12.ft
 
 -- select VMS points from selected fishing voyages ---
 left outer  join  dbo.SatSighting Sat 
-on Sat.SightingDate between  iFV.DEPARTURE_DATE_TIME and iFV.RETURN_DATE_TIME 
+on Sat.SightingDate between  iFV.DEPARTURE_DATE_TIME and iFV.RETURN_DATE_TIME  # change matt
 and Sat.RSSNo = iFV.RSS_NO
 
 --- select vessel details  ----
