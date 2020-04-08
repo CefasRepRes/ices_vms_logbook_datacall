@@ -24,7 +24,7 @@
 with iFA as ( 
 		select ACTIVITY_ID, VOYAGE_ID
 		from dbo.F_ACTIVITY 
-		where YEAR(ACTIVITY_DATE ) between 2019 and  2019 
+		where YEAR(ACTIVITY_DATE ) between 2009 and  2019 
 	), 
 	iFC as ( 
 		select ACTIVITY_ID, SPECIES_CODE, Sum(LIVE_WEIGHT) as LE_KG, Sum(LANDINGS_VALUE) as LE_EURO 
