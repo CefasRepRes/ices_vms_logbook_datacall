@@ -21,11 +21,10 @@
  */
  
  
-
 with iFA as ( 
 		select ACTIVITY_ID, VOYAGE_ID
 		from dbo.F_ACTIVITY 
-		where YEAR(ACTIVITY_DATE ) between 2009 or YEAR(ACTIVITY_DATE) = 2019 
+		where YEAR(ACTIVITY_DATE ) between 2019 and  2019 
 	), 
 	iFC as ( 
 		select ACTIVITY_ID, SPECIES_CODE, Sum(LIVE_WEIGHT) as LE_KG, Sum(LANDINGS_VALUE) as LE_EURO 
@@ -45,6 +44,7 @@ LE_EURO
 
 from 
 -- IFISH basic joins
-select * from iFA inner join  iFC on iFA.ACTIVITY_ID = iFC.ACTIVITY_ID	
-inner join dbo.D_VESSEL iDV on iFV.RSS_NO = iDV.RSS_NO and  iDV.COUNTRY_CODE like 'GB%'  
- 	    
+dbo.F_VOYAGE iFV 
+inner join dbo.D_VESSEL iDV on iFV.RSS_NO = iDV.RSS_NO and  iDV.COUNTRY_CODE like 'GB%' 
+inner join iFA on iFV.VOYAGE_ID = iFA.VOYAGE_ID
+inner join  iFC on iFA.ACTIVITY_ID = iFC.ACTIVITY_ID	
