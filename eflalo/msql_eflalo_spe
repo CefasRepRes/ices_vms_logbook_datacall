@@ -22,15 +22,10 @@
  
  
 
-with iFV as  ( 
-		select * 
-		from dbo.F_VOYAGE 
-		where YEAR(DEPARTURE_DATE_TIME) = 2018 or YEAR(RETURN_DATE_TIME) = 2018 
-		) , 
-	iFA as ( 
-		select *
+with iFA as ( 
+		select ACTIVITY_ID, VOYAGE_ID
 		from dbo.F_ACTIVITY 
-		where VOYAGE_ID IN ( select DISTINCT VOYAGE_ID from iFV ) 
+		where YEAR(ACTIVITY_DATE ) between 2009 or YEAR(ACTIVITY_DATE) = 2019 
 	), 
 	iFC as ( 
 		select ACTIVITY_ID, SPECIES_CODE, Sum(LIVE_WEIGHT) as LE_KG, Sum(LANDINGS_VALUE) as LE_EURO 
@@ -40,7 +35,7 @@ with iFV as  (
 
 select DISTINCT
 -- Fishing Trip info section
-CAST (iFV.VOYAGE_ID AS BIGINT) as FT_REF,
+CAST (iFA.VOYAGE_ID AS BIGINT) as FT_REF,
  
 -- Logbook Event info section
 iFA.ACTIVITY_ID as LE_ID, -- Need to back track this to FT_REF + counter within FT_REF 
@@ -50,7 +45,6 @@ LE_EURO
 
 from 
 -- IFISH basic joins
-iFV inner join  iFA on iFV.VOYAGE_ID = iFA.VOYAGE_ID  
-inner join  iFC 	on iFA.ACTIVITY_ID = iFC.ACTIVITY_ID	
+select * from iFA inner join  iFC on iFA.ACTIVITY_ID = iFC.ACTIVITY_ID	
 inner join dbo.D_VESSEL iDV on iFV.RSS_NO = iDV.RSS_NO and  iDV.COUNTRY_CODE like 'GB%'  
  	    
