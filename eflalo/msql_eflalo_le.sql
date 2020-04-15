@@ -62,7 +62,8 @@ iFA.MESH_SIZE as LE_MSZ,
 iFA.RECTANGLE_CODE as LE_RECT,
 iFA.FAO_FISHING_AREA_CODE as LE_DIV,
 --iDE.EFLALO2_AREA as LE_DIV,
-null as LE_MET
+null as LE_MET, 
+VOYAGE_ID as eflalo_ft_ft_ref
 
 from 
 -- IFISH basic joins
