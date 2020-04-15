@@ -45,7 +45,7 @@ FROM dbo.F_VOYAGE iFV
 	inner join F_ACTIVITY iFA    
 	on iFA.VOYAGE_ID = iFV.VOYAGE_ID and  YEAR(ACTIVITY_DATE ) between 2019 and  2019 
     inner join dbo.D_VESSEL iDV 
-    on (YEAR(DEPARTURE_DATE_TIME) = 2009 or YEAR(RETURN_DATE_TIME) = 2019)  and  iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' and  
+    on  iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' and  
  						CONVERT(  DATE, CONVERT(VARCHAR(10), iFV.DEPARTURE_DATE_TIME, 112) )  						
 						 between CONVERT(  DATE, CONVERT(VARCHAR(10), iDV.VALID_FROM_DATE, 112) )  
 						 and CONVERT(  DATE, CONVERT(VARCHAR(10),  iDV.VALID_TO_DATE , 112) )    
