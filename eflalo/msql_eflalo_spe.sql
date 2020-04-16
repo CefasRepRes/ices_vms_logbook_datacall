@@ -19,16 +19,13 @@
  pivoted into EFLALO standard format in R enviroment and then be used with  VMSTools for further analysis
  
  */
- 
-select DISTINCT
--- Fishing Trip info section
-CAST (iFA.VOYAGE_ID AS BIGINT) as FT_REF,
- 
+ select DISTINCT 
 -- Logbook Event info section
 iFA.ACTIVITY_ID as LE_ID, -- Need to back track this to FT_REF + counter within FT_REF 
 iFC.species_code  LE_SPE,
 Sum(LIVE_WEIGHT) as LE_KG, 
 Sum(LANDINGS_VALUE) as LE_EURO , 
+-- Fishing Trip info section
 CAST (iFA.VOYAGE_ID AS BIGINT) as   eflalo_ft_ft_ref
 
 FROM dbo.F_VOYAGE iFV		  
