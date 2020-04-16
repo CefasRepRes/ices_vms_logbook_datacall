@@ -22,28 +22,7 @@
  
  */
  
- 
-
-with iFV as  ( 
-		select iFV.* 
-		from dbo.F_VOYAGE 	iFV	 
-		inner  join dbo.D_VESSEL iDV on YEAR(RETURN_DATE_TIME) between 2009 and 2019  and 
-				iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' and   
- 						CONVERT(  DATE, CONVERT(VARCHAR(10), iFV.DEPARTURE_DATE_TIME, 112) )  						
-						 between CONVERT(  DATE, CONVERT(VARCHAR(10), iDV.VALID_FROM_DATE, 112) )  
-						 and CONVERT(  DATE, CONVERT(VARCHAR(10),  iDV.VALID_TO_DATE , 112) ) 
-		) , 
-	iFA as ( 
-		select *
-		from dbo.F_ACTIVITY 
-		where VOYAGE_ID IN ( select DISTINCT VOYAGE_ID from iFV ) 
-     
-	)
-
 select DISTINCT
- 
-
-
 -- Logbook Event info section
 iFA.ACTIVITY_ID as LE_ID, -- Need to back track this to FT_REF + counter within FT_REF
 iFA.ACTIVITY_DATE as LE_CDAT,
@@ -63,22 +42,17 @@ iFA.RECTANGLE_CODE as LE_RECT,
 iFA.FAO_FISHING_AREA_CODE as LE_DIV,
 --iDE.EFLALO2_AREA as LE_DIV,
 null as LE_MET, 
-VOYAGE_ID as eflalo_ft_ft_ref
+iFV.VOYAGE_ID as eflalo_ft_ft_ref
 
-from 
--- IFISH basic joins
-iFV inner join  iFA on iFV.VOYAGE_ID = iFA.VOYAGE_ID  
-
--- Need a couple of port nationalities
-left join dbo.D_PORT iDPD on iFV.DEPARTURE_PORT_CODE = iDPD.PORT_CODE
-left join dbo.D_PORT iDPL on iFV.LANDING_PORT_CODE = iDPL.PORT_CODE
--- inner join dbo.GBPToEuroConversionMultiplier iMp on Year(iFV.RETURN_DATE_TIME) = iMp.YearValid
-order by LE_CDAT DESC
---inner join iFish2Dev.dbo.D_EFLALO2_AREA iDE on iFA.FAO_FISHING_AREA_CODE = iDE.FAO_FISHING_AREA
-
---inner join RegionRectangle rr on iFA.RECTANGLE_CODE = rr.Rectangle
+FROM dbo.F_VOYAGE iFV		  
+	inner join F_ACTIVITY iFA    
+	on iFA.VOYAGE_ID = iFV.VOYAGE_ID and  YEAR(ACTIVITY_DATE ) between 2019 and  2019 
+    inner join dbo.D_VESSEL iDV 
+    on  iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' and  
+ 						CONVERT(  DATE, CONVERT(VARCHAR(10), iFV.DEPARTURE_DATE_TIME, 112) )  						
+						 between CONVERT(  DATE, CONVERT(VARCHAR(10), iDV.VALID_FROM_DATE, 112) )  
+						 and CONVERT(  DATE, CONVERT(VARCHAR(10),  iDV.VALID_TO_DATE , 112) )    
 
 
---Deal with some things that dont fit joins very well
 
---and iFA.ACTIVITY_DATE between rq.DateFrom and rq.DateTo
+
