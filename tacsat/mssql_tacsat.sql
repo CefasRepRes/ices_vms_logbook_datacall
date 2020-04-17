@@ -18,7 +18,7 @@ inner join dbo.D_VESSEL iDV
 on iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' 
   and iFV.DEPARTURE_DATE_TIME between iDV.VALID_FROM_DATE and iDV.VALID_TO_DATE	
 -- select VMS points from selected fishing voyages ---
-inner outer  join  dbo.SatSighting Sat 
+inner join  dbo.SatSighting Sat 
 on Sat.SightingDate between  iFV.DEPARTURE_DATE_TIME and iFV.RETURN_DATE_TIME 
 and Sat.RSSNo = iFV.RSS_NO and YEAR(Sat.SightingDate) = 2009
 
