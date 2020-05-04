@@ -23,9 +23,9 @@ create table eflalo_metiers.voyage_taxa_stats as
 with eflalo as ( 
 	select ft_Ref, le_gear, le_div , le_spe ,  le_kg, le_euro
 	from   eflalo2.eflalo_ft a
-	left join eflalo2.eflalo_le b   
+	inner  join eflalo2.eflalo_le b   
 	on ft_year = 2019  and a.ft_Ref = b.eflalo_ft_ft_Ref
-	left join eflalo2.eflalo_spe c
+	inner  join eflalo2.eflalo_spe c
 	on b.le_id = c.eflalo_le_le_id
 ) , 
 daf as ( 
