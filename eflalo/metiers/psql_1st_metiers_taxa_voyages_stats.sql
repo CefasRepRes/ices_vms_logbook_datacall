@@ -16,15 +16,24 @@
  
  --- CREATE TABLE eflalo_metiers.voyage_taxa_stats  WITH LANDING STATISTICS BY VOYAGE, GEAR TYPE AND ICES DIVISION : 
  
+
 drop table eflalo_metiers.voyage_taxa_stats;
 create table eflalo_metiers.voyage_taxa_stats as   
 
-with daf as ( 
-	select "FT_REF" ft_ref, "LE_GEAR" le_gear, "LE_DIV" le_div,  b.eflalo_taxa_aggregated  , "LE_KG" le_kg, "LE_EURO" le_euro  
+with eflalo as ( 
+	select ft_Ref, le_gear, le_div , le_spe ,  le_kg, le_euro
+	from   eflalo2.eflalo_ft a
+	left join eflalo2.eflalo_le b   
+	on ft_year = 2019  and a.ft_Ref = b.eflalo_ft_ft_Ref
+	left join eflalo2.eflalo_spe c
+	on b.le_id = c.eflalo_le_le_id
+) , 
+daf as ( 
+	select  ft_ref,  le_gear,   le_div,  b.taxa  ,      le_kg,   le_euro  , le_spe 
 	from 
-	( select * from eflalo.eflalo_2018 ) a --     where "FT_REF" = '610266236'
+	 eflalo  a --     where "FT_REF" = '610266236'
 	left join fish_metadata.ifishspptab b 
-    on a."LE_SPE" = b."eflalo_ifishcode"
+    on a.le_spe = b."eflalo_ifishcode"
     	
 ) , 
 
@@ -42,12 +51,12 @@ daf_agg as (
 	 ELSE le_gear 
 	 end as le_gear, 
 	 le_div,	
-	 eflalo_taxa_aggregated, le_kg, le_euro  
+	 taxa, le_kg, le_euro  
 	 from daf 
 ), 
 
 daf_agg_dcf as ( 
-	select ft_Ref,  le_Gear,  c."DCFcode" dcf_gearcode, le_div, eflalo_taxa_aggregated, le_kg, le_euro 
+	select ft_Ref,  le_Gear,  c."DCFcode" dcf_gearcode, le_div, taxa, le_kg, le_euro 
 	from daf_agg a 	
 	left join  fish_metadata.ifishgeartab c
 	on le_Gear = "iFishCode" 
@@ -57,14 +66,14 @@ daf_agg_dcf as (
 select a.*, sum(lekg_sum) over ( partition by ft_ref)*0.5 halfTotWgt, sum(leeuro_sum) over(partition by ft_ref)*0.5 halfTotVal,
 	b.halfDEFWT, last_value(taxa) over wnd_kg as maxwgt, last_value(taxa) over wnd_val as maxval
 from ( 
-	select ft_Ref, dcf_gearcode,  le_div,eflalo_taxa_aggregated as taxa,  sum(le_kg) lekg_sum, sum(le_euro) leeuro_sum  
+	select ft_Ref, dcf_gearcode,  le_div,taxa as taxa,  sum(le_kg) lekg_sum, sum(le_euro) leeuro_sum  
 	from daf_agg_dcf 
-	group by ft_ref, dcf_gearcode,   le_div,eflalo_taxa_aggregated 
+	group by ft_ref, dcf_gearcode,   le_div,taxa 
  	) a 
 left join (
 	select ft_Ref , dcf_gearcode,   le_div, sum(le_kg)*0.5 halfDEFWT   
 	from daf_agg_dcf 
-	where eflalo_taxa_aggregated = 'DEF' 
+	where taxa = 'DEF' 
 	group by ft_ref, dcf_gearcode  , le_div
 	) b
  using (ft_Ref,   dcf_gearcode, le_div) 
@@ -76,8 +85,6 @@ left join (
  	PARTITION BY ft_ref, dcf_gearcode,   le_div ORDER BY leeuro_sum
    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
  )
-
- 
 
  
 /*  UPDATE AUXILIARY TABLES WITH DATA IN EFLALO   */
