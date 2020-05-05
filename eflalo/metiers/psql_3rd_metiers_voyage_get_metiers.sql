@@ -22,7 +22,7 @@
 --- the table will get the componetns of the RG groups table and split in the components : gera, target , and mesh size. 
 -- Then the region column is homogenized with the FAO areas layer downloaded form FAO sites. 
 
-drop  table eflalo_metiers.metiers_tables_fao_areas_2019; 
+--drop  table eflalo_metiers.metiers_tables_fao_areas_2019; 
 create table eflalo_metiers.metiers_tables_fao_areas_2019  as 
 
 with a1 as ( 
@@ -146,30 +146,39 @@ drop table if exists eflalo_metiers.voyage_region;
 create table eflalo_metiers.voyage_region as 
 
 
-with a as (    
-select DISTINCT "FT_REF" , "LE_GEAR","LE_DIV", "DCFcode" dcf_gearcode from ( 
-			 select DISTINCT "FT_REF", 
+
+with eflalo_t as ( 
+	select ft_Ref, le_gear, le_div , le_spe ,  le_kg, le_euro
+	from   eflalo2.eflalo_ft a
+	inner  join eflalo2.eflalo_le b   
+	on  a.ft_Ref = b.eflalo_ft_ft_Ref
+	inner  join eflalo2.eflalo_spe c
+	on b.le_id = c.eflalo_le_le_id
+) ,  a as (    
+select DISTINCT FT_REF , LE_GEAR,LE_DIV, "DCFcode" dcf_gearcode from ( 
+			 select DISTINCT FT_REF, 
 				 case 
-				 when "LE_GEAR" IN ('GN', 'GNC','GEN' ) THEN 'GNS' 
-				 when  "LE_GEAR"  IN ('LL', 'LX' ) THEN 'LLS'
-				 when  "LE_GEAR"  IN ('TB', 'TBN') THEN 'OTB'
-				 when  "LE_GEAR"  IN ('MIS', 'NK', 'HF', 'RG','DRH') THEN 'MIS'
-				 when  "LE_GEAR"  = 'SV' THEN 'SSC'
-				 when  "LE_GEAR"  = 'LHM' THEN 'LHP'
-				 when  "LE_GEAR"  = 'FIX' THEN 'FPO'
-				  when  "LE_GEAR"  = 'TM' THEN 'OTM'
-				 ELSE  "LE_GEAR"  
-				 end as "LE_GEAR", 
-				 "LE_DIV" from eflalo.eflalo_2018 )  a 
+				 when LE_GEAR IN ('GN', 'GNC','GEN' ) THEN 'GNS' 
+				 when  LE_GEAR  IN ('LL', 'LX' ) THEN 'LLS'
+				 when  LE_GEAR  IN ('TB', 'TBN') THEN 'OTB'
+				 when  LE_GEAR  IN ('MIS', 'NK', 'HF', 'RG','DRH') THEN 'MIS'
+				 when  LE_GEAR  = 'SV' THEN 'SSC'
+				 when  LE_GEAR  = 'LHM' THEN 'LHP'
+				 when  LE_GEAR  = 'FIX' THEN 'FPO'
+				  when  LE_GEAR  = 'TM' THEN 'OTM'
+				 ELSE  LE_GEAR  
+				 end as LE_GEAR, 
+				 LE_DIV from eflalo_t )  a 
 			left join  fish_metadata.ifishgeartab c
-			on "LE_GEAR"  = "iFishCode" 
+			on LE_GEAR  = "iFishCode" 
   )  
 
 
   
 
-	select DISTINCT "FT_REF", dcf_gearcode,b.le_div ,  f_Code,   fao,   region ,  metier from 
-	(select distinct f_code, fao, rdb, ices, region, metier  from eflalo_metiers.metiers_tables_fao_areas_2019 ) b1  right join (Select DISTINCT "FT_REF",dcf_gearcode, "LE_DIV" le_div from   a  ) b
+	select DISTINCT FT_REF, dcf_gearcode,b.le_div ,  f_Code,   fao,   region ,  metier from 
+	(select distinct f_code, fao, rdb, ices, region, metier  from eflalo_metiers.metiers_tables_fao_areas_2019 ) b1  
+	right join (Select DISTINCT FT_REF,dcf_gearcode,  le_div from   a  ) b
 	 ON	 f_code = b.le_div  OR
 	   rdb = b.le_div  OR
 	 ices = b.le_div  ;	
@@ -199,28 +208,36 @@ select DISTINCT "FT_REF" , "LE_GEAR","LE_DIV", "DCFcode" dcf_gearcode from (
 drop table  if exists  eflalo_metiers.voyage_mesh_size;
 
 create table eflalo_metiers.voyage_mesh_size as 
-with a as (    
-	select DISTINCT "FT_REF" , "LE_GEAR","LE_MSZ", "LE_DIV" le_div, "DCFcode" dcf_gearcode from ( 
-				 select DISTINCT "FT_REF", 
+
+with eflalo_t as ( 
+	select ft_Ref, le_gear, le_msz,le_div , le_spe ,  le_kg, le_euro
+	from   eflalo2.eflalo_ft a
+	inner  join eflalo2.eflalo_le b   
+	on  a.ft_Ref = b.eflalo_ft_ft_Ref
+	inner  join eflalo2.eflalo_spe c
+	on b.le_id = c.eflalo_le_le_id
+) ,  a as (    
+	select DISTINCT FT_REF , LE_GEAR,LE_MSZ, LE_DIV le_div, "DCFcode" dcf_gearcode from ( 
+				 select DISTINCT FT_REF, 
 					 case 
-					 when "LE_GEAR" IN ('GN', 'GNC','GEN' ) THEN 'GNS' 
-					 when  "LE_GEAR"  IN ('LL', 'LX' ) THEN 'LLS'
-					 when  "LE_GEAR"  IN ('TB', 'TBN') THEN 'OTB'
-					 when  "LE_GEAR"  IN ('MIS', 'NK', 'HF', 'RG','DRH') THEN 'MIS'
-					 when  "LE_GEAR"  = 'SV' THEN 'SSC'
-					 when  "LE_GEAR"  = 'LHM' THEN 'LHP'
-					 when  "LE_GEAR"  = 'FIX' THEN 'FPO'
-					  when  "LE_GEAR"  = 'TM' THEN 'OTM'
-					 ELSE  "LE_GEAR"  
-					 end as "LE_GEAR", 
-					 "LE_DIV" , "LE_MSZ" 
-					 from eflalo.eflalo_2018 )  a 
+					 when LE_GEAR IN ('GN', 'GNC','GEN' ) THEN 'GNS' 
+					 when  LE_GEAR  IN ('LL', 'LX' ) THEN 'LLS'
+					 when  LE_GEAR  IN ('TB', 'TBN') THEN 'OTB'
+					 when  LE_GEAR  IN ('MIS', 'NK', 'HF', 'RG','DRH') THEN 'MIS'
+					 when  LE_GEAR  = 'SV' THEN 'SSC'
+					 when  LE_GEAR  = 'LHM' THEN 'LHP'
+					 when  LE_GEAR  = 'FIX' THEN 'FPO'
+					  when  LE_GEAR  = 'TM' THEN 'OTM'
+					 ELSE  LE_GEAR  
+					 end as LE_GEAR, 
+					 LE_DIV , LE_MSZ 
+					 from eflalo_t )  a 
 				left join  fish_metadata.ifishgeartab c
-				on "LE_GEAR"  = "iFishCode" 		 
+				on LE_GEAR  = "iFishCode" 		 
   ), 
   b as (   
-	select DISTINCT "FT_REF" ft_ref , dcf_gearcode,le_div,
-	 CASE  WHEN dcf_gearcode IN ( 'DRB','HMD','LHP','LTL','LLD','LLS','FPO','FYK','SB' ) THEN 0 ELSE  "LE_MSZ"  END as le_msz 
+	select DISTINCT FT_REF ft_ref , dcf_gearcode,le_div,
+	 CASE  WHEN dcf_gearcode IN ( 'DRB','HMD','LHP','LTL','LLD','LLS','FPO','FYK','SB' ) THEN 0 ELSE  LE_MSZ  END as le_msz 
 	 from a
   )  
 
@@ -243,8 +260,8 @@ group by ft_Ref, dcf_gearcode, le_div;
 
 
  --- 1. create UK METIERS 
-	drop table  if exists eflalo_metiers.uk_metiers_2018;
-	create table eflalo_metiers.uk_metiers_2018  as 
+	drop table  if exists eflalo_metiers.uk_metiers_2009_2019;
+	create table eflalo_metiers.uk_metiers_2009_2019  as 
   
 	with a as ( 
 
@@ -255,7 +272,7 @@ group by ft_Ref, dcf_gearcode, le_div;
 		on a.ft_REf = b.ft_ref  and  a.dcf_gearcode = b.dcf_gearcode	and a.le_div = b.le_div
 		inner join 
 		eflalo_metiers.voyage_region c
-		on  a.ft_Ref = c."FT_REF" and a.dcf_gearcode = c.dcf_gearcode  and a.le_div = c.le_div
+		on  a.ft_Ref = c.FT_REF and a.dcf_gearcode = c.dcf_gearcode  and a.le_div = c.le_div
 	 ) 
 
 	select DISTINCT  ft_Ref, dcf_gearcode, target_taxa, 
@@ -273,10 +290,10 @@ group by ft_Ref, dcf_gearcode, le_div;
 
 --- 2. look up equivalence between UK METIERS and DCF_METIERS in eflalo_metiers.metiers_table TABLE
 
-drop table  if exists  eflalo_metiers.dcf_metiers_2018;
-create table eflalo_metiers.dcf_metiers_2018  as 
+drop table  if exists  eflalo_metiers.dcf_metiers_2009_2019;
+create table eflalo_metiers.dcf_metiers_2009_2019  as 
 with a as ( 
-	select * from eflalo_metiers.uk_metiers_2018 
+	select * from eflalo_metiers.uk_metiers_2009_2019
 	) , b as ( 
 
 	select  DISTINCT a.*, case when le_msz_avg = 0 then b.metier_lvl6_proposal_2019 else   b.metier_lvl6 end as metier_lvl6,  min_mesh_size, max_mesh_size
@@ -308,7 +325,7 @@ with a as (
 	UNION 
 	select * from f; 
 
-	alter table eflalo_metiers.dcf_metiers_2018  drop column id ; 
+	alter table eflalo_metiers.dcf_metiers_2009_2019  drop column id ; 
 
  
 		
@@ -320,13 +337,13 @@ with a as (
 
 
 with a as ( 
-select row_number () over ( partition by ft_ref, dcf_gearcode,    le_div    ) rid , *  from eflalo_metiers.dcf_metiers_2018
+select row_number () over ( partition by ft_ref, dcf_gearcode,    le_div    ) rid , *  from eflalo_metiers.dcf_metiers_2009_2019
 ) , b as ( 
 
 	select ft_Ref from a where rid > 1 
   ) , c as ( 
 	select row_number() over() id,  * 
-	from eflalo_metiers.dcf_metiers_2018 
+	from eflalo_metiers.dcf_metiers_2009_2019 
 	where ft_Ref in ( select * from  b ) and metier_area != 'X' order by ft_ref , min_mesh_Size DESC , max_mesh_Size   
 ) , d as ( 
 
@@ -342,12 +359,16 @@ select * from c where id in ( select * from d ) order by id ;
 
 --- count number of unqiue trips by metiers not assigned -----
 
-select count(distinct ft_ref) , metier_a, region , metier_area  , dcf_gearcode  from eflalo_metiers.dcf_metiers_2019 where metier_lvl6 IS NULL  and dcf_gearcode != 'OTH'	
+select count(distinct ft_ref) , metier_a, region , metier_area  , dcf_gearcode  
+	from eflalo_metiers.dcf_metiers_2009_2019 
+	where metier_lvl6 IS NULL  and dcf_gearcode != 'OTH'	
 	group by metier_a, region , metier_area , dcf_gearcode
 	order by  dcf_gearcode , region , metier_area, count  
 
 ----- ANALYSE WHAT ARE THE METIERS OTHERS THAN GEAR CODE 'OTH'(others ) WITH NOT ASSIGNED METIER
-	select  *   from eflalo_metiers.dcf_metiers_2018 where metier_lvl6 IS NULL  and dcf_gearcode != 'OTH'	 
+	select  *   
+	from eflalo_metiers.dcf_metiers_2009_2019
+	 where metier_lvl6 IS NULL  and dcf_gearcode != 'OTH'	 
 	order by  dcf_gearcode , region , metier_area
 
 	
@@ -406,23 +427,48 @@ select count(distinct ft_ref) , metier_a, region , metier_area  , dcf_gearcode  
 	
  ----- 3. ASSIGN THE MISC METIERS FOR THOSE METIERS WITHOUT ASSGINED METIER (AFTER THE ANLYSIS OF NTO ASSIGNED METIERS) 
 
-update eflalo_metiers.dcf_metiers_2018 set metier_lvl6 =  'MIS_MIS_0_0_0' where metier_lvl6 IS NULL; 
+update eflalo_metiers.dcf_metiers_2009_2019 set metier_lvl6 =  'MIS_MIS_0_0_0' where metier_lvl6 IS NULL; 
 
----- 4.a UPDATE EFLALO TABLE WITH THE NEW CALCUALTED METIERS 
-update eflalo.eflalo_2017 b  set "LE_MET" =  NULL; 
+---- 4.a UPDATE EFLALO TABLE WITH THE NEW CALCULATED METIERS 
 
-with a as ( 
-	select ft_ref, dcf_gearcode, le_div , metier_lvl6  from eflalo_metiers.dcf_metiers_2018  
+-- set all to null initially 
+update eflalo2.eflalo_le  b  set "LE_MET" =  NULL; 
+
+-----------------------------------------
+--update all not aggregated gears 
+-----------------------------------------
+
+with dcf_metiers as ( 
+	select ft_ref, dcf_gearcode, le_div , metier_lvl6  from eflalo_metiers.dcf_metiers_2009_2019
+	 
+ ) ,  
+-- get back the original iFISH metier 
+  metiers_original_gear as  (
+
+	select distinct a.*, gear2."iFishCode" 
+	 from dcf_metiers a 
+	 inner join  fish_metadata.ifishgeartab gear2	
+	 on  a.dcf_gearcode = "DCFcode" 
+	 inner join eflalo2.eflalo_le  c
+	 on a.ft_ref = c.eflalo_ft_ft_Ref and a.le_div = c.le_div and c.le_gear = gear2."iFishCode" 
+	
 ) 
 
-update eflalo.eflalo_2018 b  set "LE_MET" = metier_lvl6 from a  where "FT_REF" = ft_Ref  and "LE_GEAR" = dcf_gearcode and "LE_DIV" = le_div ; 
+update eflalo2.eflalo_le b  set LE_MET = metier_lvl6 from metiers_original_gear  a
+	where a.FT_REF = b.eflalo_ft_ft_Ref  and LE_GEAR = "iFishCode"  and a.LE_DIV = b.le_div ; 
+
+
 
 ----4.b update metiers column with aggregated gears ; 
 
 with daf as ( 
-	select "FT_REF" ft_ref, "LE_GEAR" le_gear, "LE_DIV" le_div 
+	select eflalo_ft_FT_REF ft_ref, LE_GEAR le_gear, LE_DIV le_div 
 	from 
-	( select * from eflalo.eflalo_2018  WHERE "LE_GEAR"  IN  ( 'OT',  'GN', 'GNC', 'GEN', 'LL', 'LX', 'TB', 'TBN','MIS', 'NK', 'HF', 'RG' , 'SV', 'LHM' , 'TM','FIX','DRH')     ) a -- where "FT_REF" = '900010510373' 
+	( select * 
+	from eflalo2.eflalo_le  
+	WHERE LE_GEAR  
+		IN  ( 'MIS', 'NK', 'HF', 'RG','LNP','FAR', 'FPN','SV')     
+	) a 
 	
 ) , 
 
@@ -430,22 +476,16 @@ daf_agg as (
  
 	 select DISTINCT ft_ref, 
 	 le_gear,
-	 case 
-	 when le_gear IN ('GN', 'GNC', 'GEN' ) THEN 'GNS' 
-	 when le_gear IN ('LL', 'LX' ) THEN 'LLS'
-	 when le_gear IN ('TB', 'TBN') THEN 'OTB'
-	 when le_Gear IN ('MIS', 'NK', 'HF', 'RG', 'DRH') THEN 'MIS'
-	 when le_gear = 'SV' THEN 'SSC'
-	 when le_gear = 'LHM' THEN 'LHP'
-	 when le_gear = 'FIX' THEN 'FPO'
-	 when le_gear = 'TM' THEN 'OTM'
+	 case 	 	 	 
+	 when le_Gear IN ('MIS', 'NK', 'HF', 'RG' , 'LNP','FAR', 'FPN' ) THEN 'MIS'
+	 when le_gear = 'SV' THEN 'SSC'	  	  
 	 ELSE le_gear 
 	 end as le_gear_agg, 
 	 le_div	 
 	 from daf  
 ), 
 dcf_metiers as ( 
-	select ft_ref, dcf_gearcode, le_div , metier_lvl6  from eflalo_metiers.dcf_metiers_2018  
+	select ft_ref, dcf_gearcode, le_div , metier_lvl6  from eflalo_metiers.dcf_metiers_2009_2019
 ) , 
 metiers_original_gear as  (
 
@@ -454,27 +494,89 @@ select a.*,  b.le_gear from (
 	 from dcf_metiers a 
 	 inner join  fish_metadata.ifishgeartab gear2	
 	 on  a.dcf_gearcode = "DCFcode" 
-	 )  a  inner join daf_agg b on a. ft_ref   = b.ft_Ref and a."iFishCode" = b.le_gear_agg and a.le_div = b.le_div 
+	 )  a 
+	 inner join 
+	 daf_agg b 
+	 on a. ft_ref   = b.ft_Ref and a."iFishCode" = b.le_gear_agg and a.le_div = b.le_div 
 
 
 ) 
 
-update eflalo.eflalo_2018 b  set "LE_MET" = metier_lvl6 from metiers_original_gear  where "FT_REF" = ft_Ref  and "LE_GEAR" = le_gear  and "LE_DIV" = le_div ; 
+update eflalo2.eflalo_le b  set LE_MET = metier_lvl6 
+from metiers_original_gear c  
+where b.eflalo_ft_FT_REF = c.ft_Ref  and c.LE_GEAR = b.le_gear  and b.LE_DIV = c.le_div ; 
+
+--- 4.c update the not assigned metiers with the metiers in the same trip if it at least one metier   assigned.
+
+with a as( 
+	select eflalo_ft_ft_ref ,le_met , row_number() over (partition by eflalo_ft_ft_ref , le_met order by le_met desc )  rn
+	from eflalo2.eflalo_le where eflalo_ft_ft_ref in ( select distinct eflalo_ft_ft_ref from eflalo2.eflalo_le where le_met IS NULL )
+) , b as ( 
+select a.* from a inner join  ( 
+	select  max( rn) ,  eflalo_ft_ft_ref  
+	from a 
+	where  le_met is not null  
+	group by  eflalo_ft_ft_ref
+	) foo  
+	on a.eflalo_ft_ft_ref = foo.eflalo_ft_ft_ref and rn = max and   a.le_met is not null
+) , c as ( 
+	select row_number() over( partition by eflalo_ft_ft_ref ) rn2, * from b
+)
+
+update eflalo2.eflalo_le  d set le_met =  c.le_met from c where d.le_met is null and c.eflalo_ft_ft_ref = d.eflalo_ft_ft_ref  and c.rn2 = 1   ;
 
 
 
+
+----------------------------------------------------------------------------------------------------------------------------------
 --- check how many trips havent metier. The aim is that all of them get a associated metier ( even if it is MISC metiers ) .
-select * from eflalo.eflalo_2018 where "LE_MET" IS NULL;
+----------------------------------------------------------------------------------------------------------------------------------
 
 
+select count(*) from eflalo2.eflalo_le where le_met is null;
+select * from eflalo2.eflalo_le where LE_MET IS NULL;
+
+	-- select and analyse trips with no assigned metiers . 
+
+		-- in example below werent assigned metiers due to existance of log events in eflalo_le 
+		-- but not existing in eflalo_spe. The solution was to assign the metiers from the ft_ref when it exists.
+
+	with eflalo_t as ( 
+		select a.*, b.*, eflalo_le_le_id --, c.*
+		from  ( select * from  eflalo2.eflalo_ft  
+		where ft_Ref in ( select distinct eflalo_ft_ft_ref from eflalo2.eflalo_le where LE_MET IS NULL)  ) a
+		inner  join eflalo2.eflalo_le b   
+		on    a.ft_Ref = b.eflalo_ft_ft_Ref
+		left  join eflalo2.eflalo_spe c
+		on b.le_id = c.eflalo_le_le_id
+	) , b as ( 
+	select * from eflalo_t where eflalo_le_le_id is not null 
+	order by ft_Ref , le_gear ) 
+
+	select * from b 
+		
+	select * from eflalo_metiers.dcf_metiers_2009_2019 where ft_ref = 101200405
+	101200405,'OTM','SPF',98,'27.4.b','27.4.b','NSEA','IV..VIId','OTM_98_NSEA_SPF_IV..VIId','OTM_SPF_70-99_0_0','70','99'
+
+	select * from eflalo_metiers.voyage_taxa_stats where  ft_ref = 101200405
+	select * from eflalo2.eflalo_ft where ft_Ref = 701125715;
+	select * from eflalo2.eflalo_le where eflalo_ft_ft_ref = 654085965 ;
+	select * from eflalo2.eflalo_le where le_id in ( 12015221 )
+	select * from eflalo2.eflalo_spe where eflalo_le_le_id in ( select distinct le_id from eflalo2.eflalo_le where LE_MET IS NULL ) 
+	select * from eflalo2.eflalo_le where le_id in ( select distinct le_id from eflalo2.eflalo_le where LE_MET IS NULL )  order by le_gear
+ 
+	 select * from eflalo_metiers.metiers_tables_fao_areas_2019 
+	 where le_div = '27.7.e' and target_taxa  = 'DEF' and gear = 'PTM' and  120 between min_mesh_size::numeric and max_mesh_Size::numeric
 
 
+-- if FINALLY analysis of not assigned mettiers result 
+-- identify trips with log events but not catch related in the eflalo_spe table
 
+update eflalo2.eflalo_le set le_met ='MIS_MIS_0_0_0'  where le_met IS NULL; 
 
+-- then the result of below query have to be 0
 
-
-
-
+select count(*) from eflalo2.eflalo_le where le_met is null;
 
 
 
