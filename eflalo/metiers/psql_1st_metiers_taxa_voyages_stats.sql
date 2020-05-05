@@ -12,42 +12,38 @@
 	-- fish_metadata.ifishgeartab
 
 
-  
+	
  
+
+  
  --- CREATE TABLE eflalo_metiers.voyage_taxa_stats  WITH LANDING STATISTICS BY VOYAGE, GEAR TYPE AND ICES DIVISION : 
  
 
 drop table eflalo_metiers.voyage_taxa_stats;
 create table eflalo_metiers.voyage_taxa_stats as   
 
-with eflalo as ( 
+with eflalo_t as ( 
 	select ft_Ref, le_gear, le_div , le_spe ,  le_kg, le_euro
 	from   eflalo2.eflalo_ft a
 	inner  join eflalo2.eflalo_le b   
-	on ft_year = 2019  and a.ft_Ref = b.eflalo_ft_ft_Ref
+	on  a.ft_Ref = b.eflalo_ft_ft_Ref
 	inner  join eflalo2.eflalo_spe c
 	on b.le_id = c.eflalo_le_le_id
 ) , 
 daf as ( 
 	select  ft_ref,  le_gear,   le_div,  b.taxa  ,      le_kg,   le_euro  , le_spe 
 	from 
-	 eflalo  a --     where "FT_REF" = '610266236'
+	 eflalo_t  a --     where "FT_REF" = '610266236'
 	left join fish_metadata.ifishspptab b 
-    on a.le_spe = b."eflalo_ifishcode"
+    on a.le_spe = b."FAOcode"
     	
 ) , 
 
 daf_agg as (
 	 select DISTINCT ft_ref, 
 	 case 
-	 when le_gear IN ('GN', 'GNC', 'GEN' ) THEN 'GNS' 
-	 when le_gear IN ('LL', 'LX' ) THEN 'LLS'
-	 when le_gear IN ('TB', 'TBN') THEN 'OTB'
-	 when le_Gear IN ('MIS', 'NK', 'HF', 'RG', 'DRH') THEN 'MIS'
-	 when le_gear = 'SV' THEN 'SSC'
-	 when le_gear = 'LHM' THEN 'LHP'
-	 when le_gear = 'FIX' THEN 'FPO'
-	  when le_gear = 'TM' THEN 'OTM'
+	 when le_Gear IN ('MIS', 'NK', 'HF', 'RG' , 'LNP','FAR', 'FPN' ) THEN 'MIS'
+	 when le_gear = 'SV' THEN 'SSC'	
 	 ELSE le_gear 
 	 end as le_gear, 
 	 le_div,	
@@ -62,7 +58,7 @@ daf_agg_dcf as (
 	on le_Gear = "iFishCode" 
 )  
 
-  
+   
 select a.*, sum(lekg_sum) over ( partition by ft_ref)*0.5 halfTotWgt, sum(leeuro_sum) over(partition by ft_ref)*0.5 halfTotVal,
 	b.halfDEFWT, last_value(taxa) over wnd_kg as maxwgt, last_value(taxa) over wnd_val as maxval
 from ( 
@@ -111,23 +107,35 @@ left join (
 
 		select * from  fish_metadata.ifishspptab where "iFishCode" IN(  'BSS', 'HKE', 'BSH' , 'SWO') 
 
-	 --- SPECIES IN EFLALO NOT PRESENT IN IFISHSPPTAB AUXILIARY TABLE 
-		 
-		with a as( 
-		select DISTINCT "LE_SPE" le_spe from eflalo.eflalo_2018 
+	 --,- SPECIES IN EFLALO NOT PRESENT IN IFISHSPPTAB AUXILIARY TABLE 
+		
+		select * from fish_metadata.ifishspptab limit 10 ; 
+		
+		with eflalo_t as ( 
+			select ft_Ref, le_gear, le_div , le_spe ,  le_kg, le_euro
+			from   eflalo2.eflalo_ft a
+			inner  join eflalo2.eflalo_le b   
+			on ft_year = 2019  and a.ft_Ref = b.eflalo_ft_ft_Ref
+			inner  join eflalo2.eflalo_spe c
+			on b.le_id = c.eflalo_le_le_id
+		)  -- ,  a as( 
+		select DISTINCT LE_SPE le_spe from eflalo_t 
 		EXCEPT
-		select DISTINCT "eflalo_ifishcode" from  fish_metadata.ifishspptab 
+		select DISTINCT "FAOcode" from  fish_metadata.ifishspptab 
 		) , 
 		b as ( select   *  from fish_metadata.species_code_fao where code_3a IN ( select * from a )  ) ,
 		c as ( 
-		select count(*) , "LE_SPE" from eflalo.eflalo_2018 where "LE_SPE" IN ( select code_3a from b )  group by "LE_SPE" 
+		select count(*) , LE_SPE from eflalo_t where LE_SPE IN ( select code_3a from b )  group by LE_SPE 
 		) 
 
-		select * from b right join c on "LE_SPE" = code_3a 
+		select * from b right join c on LE_SPE = code_3a 
 
-
+	 
 
 		--- INSERT SPECIES IN EFLALO NOT PRESENT IN IFISHSPPTAB AUXILIARY TABLE 
+
+		update fish_metadata.ifishspptab set "FAOcode" = 'GRO' where "iFishCode" = 'GRO'
+
 
 		INSERT INTO fish_metadata.ifishspptab     
 		select 'OCC' , 'Common Octopus',   'Common Octopus',  1,'Octopus vulgaris ', 'Mollusc', 0,  NULL, 'OCC' , 'Common Octopus',    140605 ,   'Octopus vulgaris ' , 'CEP', 'OCC'
