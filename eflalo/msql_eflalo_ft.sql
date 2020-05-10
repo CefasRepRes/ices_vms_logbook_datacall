@@ -46,9 +46,10 @@ SELECT DISTINCT
   YEAR(CAST( iFV.RETURN_DATE_TIME AS DATE)) as FT_YEAR 
 
   
-FROM dbo.F_VOYAGE iFV		  
-	inner join F_ACTIVITY iFA    
-	on iFA.VOYAGE_ID = iFV.VOYAGE_ID and  YEAR(ACTIVITY_DATE ) between 2019 and  2019 
+FROM (  select * 
+        from dbo.F_VOYAGE 
+        where YEAR(DEPARTURE_DATE_TIME) between 2009 and  2019  OR YEAR(RETURN_DATE_TIME) between 2009 and  2019 
+    )  iFV
     inner join dbo.D_VESSEL iDV 
     on  iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' and  
  						CONVERT(  DATE, CONVERT(VARCHAR(10), iFV.DEPARTURE_DATE_TIME, 112) )  						
