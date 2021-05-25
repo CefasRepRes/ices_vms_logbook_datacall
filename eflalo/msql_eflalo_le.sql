@@ -46,7 +46,7 @@ iFV.VOYAGE_ID as eflalo_ft_ft_ref
 
 FROM dbo.F_VOYAGE iFV		  
 	inner join F_ACTIVITY iFA    
-	on iFA.VOYAGE_ID = iFV.VOYAGE_ID and  YEAR(ACTIVITY_DATE ) between 2019 and  2019 
+	on YEAR(iFV.DEPARTURE_DATE_TIME) = 2020 and iFA.VOYAGE_ID = iFV.VOYAGE_ID  
     inner join dbo.D_VESSEL iDV 
     on  iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' and  
  						CONVERT(  DATE, CONVERT(VARCHAR(10), iFV.DEPARTURE_DATE_TIME, 112) )  						
