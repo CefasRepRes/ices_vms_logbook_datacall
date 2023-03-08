@@ -12,7 +12,10 @@ null as SI_HARB,
 null as SI_STATE,
 CAST( isnull(iFV.VOYAGE_ID,0) AS BIGINT ) as SI_FT
 
-FROM dbo.F_VOYAGE as iFV
+FROM (  select * 
+        from dbo.F_VOYAGE 
+        where YEAR( DEPARTURE_DATE_TIME) = 2022 
+    )  as iFV
 --- select vessel details  ----
 inner join dbo.D_VESSEL iDV 
 on iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' 
@@ -20,7 +23,4 @@ on iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%'
 -- select VMS points from selected fishing voyages ---
 inner join  dbo.SatSighting Sat 
 on Sat.SightingDate between  iFV.DEPARTURE_DATE_TIME and iFV.RETURN_DATE_TIME 
-and Sat.RSSNo = iFV.RSS_NO and YEAR(Sat.SightingDate) = 2019
-
--- filter fields with no voyage_id or no vessel  
-
+and Sat.RSSNo = iFV.RSS_NO 
