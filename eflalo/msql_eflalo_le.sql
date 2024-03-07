@@ -7,6 +7,7 @@
  
  Date: 25/Jan/2017
  Update Date: 29/Jan/2019 , Updated by: Roi Martinez
+ Update Date: 07/March/2024 , Updated by: Roi Martinez -- Added teh code to get metiers calculated in IFISH
  Client: ICES */
  
  
@@ -41,17 +42,25 @@ iFA.MESH_SIZE as LE_MSZ,
 iFA.RECTANGLE_CODE as LE_RECT,
 iFA.FAO_FISHING_AREA_CODE as LE_DIV,
 --iDE.EFLALO2_AREA as LE_DIV,
-null as LE_MET, 
+vMET.METIER_GROUP LE_MET_GROUP,
+vMET.METIER_CODE as LE_MET, 
 iFV.VOYAGE_ID as eflalo_ft_ft_ref
 
-FROM dbo.F_VOYAGE iFV		  
+FROM  dbo.F_VOYAGE   iFV 
 	inner join F_ACTIVITY iFA    
-	on YEAR(iFV.DEPARTURE_DATE_TIME) = 2020 and iFA.VOYAGE_ID = iFV.VOYAGE_ID  
+	on YEAR(iFV.DEPARTURE_DATE_TIME) = 2023 and iFA.VOYAGE_ID = iFV.VOYAGE_ID  
     inner join dbo.D_VESSEL iDV 
     on  iFV.RSS_NO = iDV.RSS_NO and iDV.COUNTRY_CODE like 'GB%' and  
  						CONVERT(  DATE, CONVERT(VARCHAR(10), iFV.DEPARTURE_DATE_TIME, 112) )  						
 						 between CONVERT(  DATE, CONVERT(VARCHAR(10), iDV.VALID_FROM_DATE, 112) )  
-						 and CONVERT(  DATE, CONVERT(VARCHAR(10),  iDV.VALID_TO_DATE , 112) )    
+						 and CONVERT(  DATE, CONVERT(VARCHAR(10),  iDV.VALID_TO_DATE , 112) )
+ left join D_METIER_FAO_FISHING_AREA_RCG vMET_REG  
+  on iFA.FAO_FISHING_AREA_CODE = vMET_REG.FAO_FISHING_AREA_CODE 
+  left join   D_METIER_GEAR vMETGEAR
+  on iFA.GEAR_CODE = vMETGEAR.GEAR_CODE
+   left join  F_VOYAGE_METIER  vMET
+  on iFA.VOYAGE_ID = vMET.VOYAGE_ID and vMETGEAR.METIER_GEAR_CODE = vMET.GEAR_CODE and vMET_REG.RCG_CODE = vMET.RCG_CODE
+
 
 
 
